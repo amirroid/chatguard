@@ -42,7 +42,8 @@ class MainActivity : ComponentActivity() {
                             val info = it.toRoute<Screens.Web>()
 
                             WebFrameScreen(
-                                platform = info.platform
+                                platform = info.platform,
+                                onBack = navController::navigateUp
                             )
                         }
                     }

@@ -13,6 +13,7 @@ import ir.sysfail.chatguard.di.serviceModule
 import ir.sysfail.chatguard.di.steganographyModule
 import ir.sysfail.chatguard.di.useCaseModule
 import ir.sysfail.chatguard.di.viewModelModule
+import ir.sysfail.chatguard.di.webExtractionModule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,9 +35,8 @@ class ChatGuardApp : Application() {
             modules(
                 cryptoModule, steganographyModule, messengerModule, serviceModule, bridgeModule,
                 databaseModule, preferencesModule, repositoryModule, useCaseModule, viewModelModule,
-                applicationModule
+                applicationModule, webExtractionModule
             )
-
         }
 
 

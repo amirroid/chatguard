@@ -14,12 +14,12 @@
     <string name="bale" translatable="false">بله</string>
     <string name="click_to_enter" translatable="false">برای ورود کلیک کنید</string>
     <string name="use_application" translatable="false">استفاده از اپلیکیشن‌ها</string>
-    <string name="use_application_description" translatable="false">امکان استفاده از اپلیکیشن‌ها را فراهم می‌کند</string>
+    <string name="use_application_description" translatable="false">این مجوز به برنامه اجازه می‌دهد با اپلیکیشن‌های پیام‌رسان انتخاب‌شده تعامل داشته باشد.</string>
     <string name="required_permission" translatable="false">دسترسی ضروری</string>
     <string name="overlay_permission" translatable="false">نمایش روی اپلیکیشن‌های دیگر</string>
-    <string name="overlay_permission_description" translatable="false">برای نمایش شورتکات</string>
+    <string name="overlay_permission_description" translatable="false">این دسترسی برای ایجاد شورتکات به‌منظور نمایش و ارسال پیام در سایر اپلیکیشن‌ها استفاده می‌شود.</string>
     <string name="accessibility_permission" translatable="false">دسترسی پذیری</string>
-    <string name="accessibility_permission_description" translatable="false">برای خواندن محتوای صفحه در اپلیکیشن‌های مرتبط</string>
+    <string name="accessibility_permission_description" translatable="false">این مجوز برای تشخیص و خواندن محتوای صفحه در اپلیکیشن‌های پیام‌رسان پشتیبانی‌شده استفاده می‌شود و هیچ داده‌ای خارج از این محدوده ذخیره یا ارسال نمی‌شود.</string>
     <string name="access_permission" translatable="false">دریافت دسترسی</string>
     <string name="permission_accepted" translatable="false">دسترسی اعطا شده</string>
 </resources>
