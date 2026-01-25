@@ -44,11 +44,4 @@ interface PlatformExtractionStrategy {
      * @return JavaScript code that returns boolean
      */
     fun getIsChatPageScript(): String
-    
-    /**
-     * Get JavaScript code to send a message
-     * @param message The message text to send
-     * @return JavaScript code to execute
-     */
-    fun getSendMessageScript(message: String): String
 }

@@ -2,6 +2,7 @@ package ir.sysfail.chatguard.core.web_content_extractor.abstraction
 
 import android.webkit.WebView
 import ir.sysfail.chatguard.core.web_content_extractor.models.ElementData
+import ir.sysfail.chatguard.core.web_content_extractor.models.ExtractedElementMessage
 
 /**
  * Main interface for content extraction from web views
@@ -30,7 +31,7 @@ interface WebContentExtractor {
     /**
      * Set up real-time observation of message changes
      */
-    fun observeMessages(onMessagesChanged: (List<String>) -> Unit)
+    fun observeMessages(onMessagesChanged: (List<ElementData>) -> Unit)
 
     /**
      * Check if the current page is a chat page
@@ -64,4 +65,19 @@ interface WebContentExtractor {
      * Set an error listener
      */
     fun setErrorListener(listener: (callbackId: String, error: String) -> Unit)
+
+    /**
+     * Observe send button click events
+     */
+    fun observeSendAction(onSend: (message: String) -> Unit)
+
+    /**
+     * Remove send action observer
+     */
+    fun removeSendActionObserver()
+
+    /**
+     * Convert extracted elements to message models
+     */
+    fun mapElementsToMessages(elements: List<ElementData>): List<ExtractedElementMessage>
 }

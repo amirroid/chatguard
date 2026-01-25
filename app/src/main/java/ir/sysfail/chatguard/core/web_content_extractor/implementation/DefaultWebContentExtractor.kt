@@ -5,6 +5,7 @@ import android.webkit.WebView
 import ir.sysfail.chatguard.core.web_content_extractor.abstraction.WebContentExtractor
 import ir.sysfail.chatguard.core.web_content_extractor.abstraction.PlatformExtractionStrategy
 import ir.sysfail.chatguard.core.web_content_extractor.models.ElementData
+import ir.sysfail.chatguard.core.web_content_extractor.models.ExtractedElementMessage
 import ir.sysfail.chatguard.core.web_content_extractor.models.ProcessingConfig
 import ir.sysfail.chatguard.core.web_content_extractor.models.SelectorConfig
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -26,6 +27,7 @@ class DefaultWebContentExtractor(
     private val observers = mutableMapOf<String, Boolean>()
     private var isInitialized = false
     private var globalErrorListener: ((String, String) -> Unit)? = null
+    private var currentSendActionObserverCallbackId: String? = null
 
     override fun attachToWebView(webView: WebView) {
         if (this.webView == webView && isInitialized) return
@@ -73,6 +75,48 @@ class DefaultWebContentExtractor(
     override fun setErrorListener(listener: (callbackId: String, error: String) -> Unit) {
         globalErrorListener = listener
     }
+
+    override fun observeSendAction(onSend: (message: String) -> Unit) {
+        val webView = webView ?: return
+
+        executeExtraction { config, _, callbackId ->
+            currentSendActionObserverCallbackId = callbackId
+
+            observers[callbackId] = true
+            callbacks[callbackId] = onSend
+
+            val script = buildObserveSendActionScript(config, callbackId)
+            webView.post { webView.evaluateJavascript(script, null) }
+        }
+    }
+
+    override fun removeSendActionObserver() {
+        val callbackId = currentSendActionObserverCallbackId ?: return
+        val webView = webView ?: return
+
+        executeExtraction { config, _, _ ->
+            val script = buildRemoveSendActionObserverScript(config)
+            webView.post { webView.evaluateJavascript(script, null) }
+        }
+
+        callbacks.remove(callbackId)
+        observers.remove(callbackId)
+        currentSendActionObserverCallbackId = null
+    }
+
+    override fun mapElementsToMessages(elements: List<ElementData>): List<ExtractedElementMessage> {
+        val processing = strategy.getProcessingConfig()
+
+        return elements.mapNotNull { element ->
+            processing.findMessageId?.invoke(element)?.let { id ->
+                ExtractedElementMessage(
+                    message = element.text,
+                    id = id
+                )
+            }
+        }
+    }
+
 
     override suspend fun extractMessages(): List<String> =
         executeExtraction { config, processing, callbackId ->
@@ -123,21 +167,20 @@ class DefaultWebContentExtractor(
             }
         }
 
-    override fun observeMessages(onMessagesChanged: (List<String>) -> Unit) {
+    override fun observeMessages(onMessagesChanged: (List<ElementData>) -> Unit) {
         val webView = webView ?: return
-        val config = strategy.getSelectorConfig()
-        val processing = strategy.getProcessingConfig()
-        val callbackId = generateCallbackId()
 
-        observers[callbackId] = true
+        executeExtraction { config, processing, callbackId ->
+            observers[callbackId] = true
 
-        callbacks[callbackId] = { json ->
-            val messages = parseMessages(JSONArray(json), config, processing)
-            onMessagesChanged(messages)
+            callbacks[callbackId] = { json ->
+                val messages = parseDetailedData(JSONArray(json), config, processing)
+                onMessagesChanged(messages)
+            }
+
+            val script = buildObserverScript(config, callbackId)
+            webView.post { webView.evaluateJavascript(script, null) }
         }
-
-        val script = buildObserverScript(config, callbackId)
-        webView.post { webView.evaluateJavascript(script, null) }
     }
 
     override suspend fun isChatPage(): Boolean =
@@ -146,8 +189,12 @@ class DefaultWebContentExtractor(
 
     override suspend fun sendMessage(message: String, transformer: ((String) -> String)?): Boolean {
         val finalMessage = transformer?.invoke(message) ?: message
-        return executeCustomScript(strategy.getSendMessageScript(finalMessage))
-            .let { it.trim() == "true" }
+        return executeCustomScript(
+            buildSendMessageScript(
+                finalMessage,
+                strategy.getSelectorConfig()
+            )
+        ).let { it.trim() == "true" }
     }
 
     override fun cleanup() {
@@ -167,8 +214,8 @@ class DefaultWebContentExtractor(
         isInitialized = false
     }
 
-    private suspend fun <T> executeExtraction(
-        block: suspend (SelectorConfig, ProcessingConfig, String) -> T
+    private inline fun <T> executeExtraction(
+        block: (SelectorConfig, ProcessingConfig, String) -> T
     ): T {
         if (webView == null) return block(
             strategy.getSelectorConfig(),
@@ -281,6 +328,74 @@ class DefaultWebContentExtractor(
 
     private fun generateCallbackId() = "callback_${System.currentTimeMillis()}"
 
+    private fun buildSendMessageScript(message: String, config: SelectorConfig): String {
+        return """
+            var input = document.querySelector('${config.inputFieldSelector}');
+            var sendBtn = document.querySelector('${config.sendButtonSelector}');
+            if (input && sendBtn) {
+                sendBtn.__chatguardIsSending = true;
+            
+                if ('value' in input) input.value = ${JSONObject.quote(message)};
+                else input.innerText = ${JSONObject.quote(message)};
+            
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                sendBtn.click();
+            
+                return true;
+            }
+            return false;
+    """.trimIndent()
+    }
+
+
+    private fun buildObserveSendActionScript(
+        config: SelectorConfig,
+        callbackId: String
+    ) = """
+        (function() {
+            var input = document.querySelector('${config.inputFieldSelector}');
+            var sendBtn = document.querySelector('${config.sendButtonSelector}');
+            if (!input || !sendBtn) return false;
+        
+            if (sendBtn.__chatguardSendObserverAttached) return true;
+            sendBtn.__chatguardSendObserverAttached = true;
+        
+        
+            sendBtn.addEventListener('click', function(event) {
+                if (sendBtn.__chatguardIsSending) {
+                    sendBtn.__chatguardIsSending = false;
+                    return;
+                }
+        
+                event.stopImmediatePropagation();
+                event.preventDefault();
+        
+                var messageText = input.value || input.innerText || input.textContent || '';
+                $BRIDGE_NAME.onContentExtracted(
+                    '$callbackId',
+                    JSON.stringify(messageText)
+                );
+            }, true);
+        
+            return true;
+        })();
+    """.trimIndent()
+
+
+    private fun buildRemoveSendActionObserverScript(config: SelectorConfig) = """
+        (function() {
+            var sendBtn = document.querySelector('${config.sendButtonSelector}');
+            if (!sendBtn) return;
+    
+            if (sendBtn.__chatguardSendHandler) {
+                sendBtn.removeEventListener('click', sendBtn.__chatguardSendHandler, true);
+                sendBtn.__chatguardSendHandler = null;
+                sendBtn.__chatguardSendObserverAttached = false;
+            }
+        })();
+    """.trimIndent()
+
+
     private fun buildExtractionScript(config: SelectorConfig, callbackId: String) =
         buildBaseScript(config, callbackId, includeDetailedAttrs = false)
 
@@ -301,37 +416,75 @@ class DefaultWebContentExtractor(
         })();
     """.trimIndent()
 
+
     private fun buildObserverScript(config: SelectorConfig, callbackId: String) = """
         (function() {
-            var targets = document.querySelectorAll('${config.messageSelector}');
-            if (targets.length === 0) return;
-            
             if (!window._chatguard_observers) {
                 window._chatguard_observers = {};
             }
-            
+        
             var callback = function() {
                 try {
-                    ${generateExtractionLogic(config, callbackId, includeDetailedAttrs = false, skipVisibilityCheck = true)}
+                    ${
+                generateExtractionLogic(
+                    config,
+                    callbackId,
+                    includeDetailedAttrs = false,
+                    skipVisibilityCheck = true
+                )
+            }
                 } catch(e) {
                     $BRIDGE_NAME.onError('$callbackId', e.message || 'Observer error');
                 }
             };
-            
-            var observer = new MutationObserver(callback);
-            window._chatguard_observers['$callbackId'] = observer;
-            
-            targets.forEach(function(node) {
-                observer.observe(node, { 
-                    childList: true, 
-                    subtree: true, 
-                    characterData: true 
+        
+            var observer = new MutationObserver(function(mutations) {
+                var hasRelevantChange = mutations.some(function(mutation) {
+                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                        return Array.from(mutation.addedNodes).some(function(node) {
+                            return node.nodeType === 1 && (
+                                node.matches && (
+                                    node.matches('${config.messageSelector}') ||
+                                    node.matches('${config.messageMetaSelector ?: ""}')
+                                ) ||
+                                node.querySelector && (
+                                    node.querySelector('${config.messageSelector}') ||
+                                    node.querySelector('${config.messageMetaSelector}')
+                                )
+                            );
+                        });
+                    }
+                    return mutation.type === 'characterData' || mutation.type === 'attributes';
                 });
+        
+                if (hasRelevantChange) {
+                    callback();
+                }
             });
-            
+        
+            window._chatguard_observers['$callbackId'] = observer;
+        
+            var container = document.querySelector('${config.containerSelector}');
+            if (!container) {
+                var firstMessage = document.querySelector('${config.messageSelector}');
+                if (firstMessage) {
+                    container = firstMessage.closest('${config.messageParentSelector}') || firstMessage.parentElement;
+                }
+            }
+            if (!container) {
+                container = document.body;
+            }
+        
+            observer.observe(container, { 
+                childList: true, 
+                subtree: true, 
+                characterData: true,
+                attributes: true
+            });
+        
             callback();
         })();
-    """.trimIndent()
+""".trimIndent()
 
     private fun generateExtractionLogic(
         config: SelectorConfig,
@@ -341,9 +494,9 @@ class DefaultWebContentExtractor(
     ): String {
         val detailedAttrs = if (includeDetailedAttrs) {
             """
-                    className: el.className || '',
-                    id: el.id || '',
-                    dir: el.getAttribute('dir') || '',"""
+                className: parent.className || '',
+                id: parent.id || '',
+                dir: parent.getAttribute('dir') || '',"""
         } else {
             ""
         }
@@ -351,60 +504,61 @@ class DefaultWebContentExtractor(
         val visibilityCheck = if (skipVisibilityCheck) {
             "true"
         } else {
-            "isElementVisible(el)"
+            "isElementVisible(parent)"
         }
 
         return """
-            var elements = document.querySelectorAll('${config.messageSelector}');
-            var contents = [];
-            var ignoreSelectors = [${config.ignoreSelectors.joinToString { "'$it'" }}];
-            var attributes = [${config.attributesToExtract.joinToString { "'$it'" }}];
-            
-            function isElementVisible(el) {
-                var rect = el.getBoundingClientRect();
-                var windowHeight = window.innerHeight || document.documentElement.clientHeight;
-                var threshold = $VISIBILITY_THRESHOLD_PX;
-                
-                return (
-                    rect.top < windowHeight + threshold &&
-                    rect.bottom > -threshold
-                );
-            }
-            
-            function extractContent(el) {
-                var clone = el.cloneNode(true);
-                ignoreSelectors.forEach(function(sel) {
-                    clone.querySelectorAll(sel).forEach(function(m) { m.remove(); });
-                });
-                
-                var text = (clone.textContent || clone.innerText || '').trim();
-                var html = clone.innerHTML || '';
-                
-                if (text || html) {
-                    var item = {
-                        text: text,
-                        html: html,$detailedAttrs
-                    };
-                    
-                    attributes.forEach(function(attr) {
-                        item[attr] = el.getAttribute(attr) || '';
-                    });
-                    
-                    return item;
-                }
-                return null;
-            }
-            
-            elements.forEach(function(el) {
-                if ($visibilityCheck) {
-                    var item = extractContent(el);
-                    if (item) {
-                        contents.push(item);
-                    }
-                }
+        var elements = document.querySelectorAll('${config.messageSelector}');
+        var contents = [];
+        var ignoreSelectors = [${config.ignoreSelectors.joinToString { "'$it'" }}];
+        var attributes = [${config.attributesToExtract.joinToString { "'$it'" }}];
+        
+        function isElementVisible(el) {
+            var rect = el.getBoundingClientRect();
+            var windowHeight = window.innerHeight || document.documentElement.clientHeight;
+            var threshold = $VISIBILITY_THRESHOLD_PX;
+            return (
+                rect.top < windowHeight + threshold &&
+                rect.bottom > -threshold
+            );
+        }
+        
+        function extractContent(el) {
+            var parent = el.closest('${config.messageParentSelector}');
+            if (!parent) return null;
+        
+            var clone = parent.cloneNode(true);
+            ignoreSelectors.forEach(function(sel) {
+                clone.querySelectorAll(sel).forEach(function(m) { m.remove(); });
             });
-            
-            $BRIDGE_NAME.onContentExtracted('$callbackId', JSON.stringify(contents));
-        """.trimIndent()
+        
+            var text = (clone.textContent || clone.innerText || '').trim();
+            var html = clone.innerHTML || '';
+        
+            if (text || html) {
+                var item = {
+                    text: text,
+                    html: html,$detailedAttrs
+                };
+        
+                attributes.forEach(function(attr) {
+                    item[attr] = parent.getAttribute(attr) || '';
+                });
+        
+                return item;
+            }
+            return null;
+        }
+        
+        elements.forEach(function(el) {
+            if ($visibilityCheck) {
+                var item = extractContent(el);
+                if (item) contents.push(item);
+            }
+        });
+        
+        $BRIDGE_NAME.onContentExtracted('$callbackId', JSON.stringify(contents));
+       """.trimIndent()
     }
+
 }

@@ -3,7 +3,9 @@ package ir.sysfail.chatguard.ui.components.webview
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.util.Log
 import android.view.View
+import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -27,6 +29,7 @@ fun WebView(
                 setLayerType(View.LAYER_TYPE_HARDWARE, null)
                 setBackgroundColor(Color.TRANSPARENT)
 
+                WebView.setWebContentsDebuggingEnabled(true)
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
@@ -74,6 +77,17 @@ fun WebView(
                     override fun onReceivedTitle(view: WebView?, title: String?) {
                         super.onReceivedTitle(view, title)
                         state.title = title ?: ""
+                    }
+
+                    override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                        if (consoleMessage != null) {
+                            Log.d(
+                                "JSConsole", "[${consoleMessage.messageLevel()}] " +
+                                        "${consoleMessage.message()} -- From line " +
+                                        "${consoleMessage.lineNumber()} of ${consoleMessage.sourceId()}"
+                            )
+                        }
+                        return super.onConsoleMessage(consoleMessage)
                     }
                 }
 

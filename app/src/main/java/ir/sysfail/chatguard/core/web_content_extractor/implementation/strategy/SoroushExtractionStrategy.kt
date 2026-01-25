@@ -5,25 +5,27 @@ import ir.sysfail.chatguard.core.web_content_extractor.abstraction.PlatformExtra
 import ir.sysfail.chatguard.core.web_content_extractor.models.ElementData
 import ir.sysfail.chatguard.core.web_content_extractor.models.ProcessingConfig
 import ir.sysfail.chatguard.core.web_content_extractor.models.SelectorConfig
-import org.json.JSONObject
 
-class SoroushStrategy : PlatformExtractionStrategy {
+class SoroushExtractionStrategy : PlatformExtractionStrategy {
     override val platform = MessengerPlatform.SOROUSH
 
     override fun getSelectorConfig() = SelectorConfig(
-        messageSelector = ".text-content.clearfix.with-meta.with-outgoing-icon",
+        containerSelector = ".MessageList",
+        messageParentSelector = ".Message.message-list-item",
+        messageSelector = ".text-content.clearfix.with-meta",
         ignoreSelectors = listOf(
-            "[data-ignore-on-paste='true']",
+            "[data-ignore-on-paste=\"true\"]",
             ".MessageMeta",
             ".message-time",
             ".MessageOutgoingStatus",
             ".Transition",
-            ".icon"
+            ".icon",
+            ".sender-title"
         ),
-        attributesToExtract = listOf("dir", "class"),
-        sendButtonSelector = ".send-message-button, .btn-send",
-        inputFieldSelector = ".input-message-text, #message-input-text",
-        chatContainerSelector = ".messages-container, .chat-container"
+        attributesToExtract = listOf(MESSAGE_ID_DATA),
+        sendButtonSelector = ".send.main-button",
+        inputFieldSelector = "#editable-message-text",
+        messageMetaSelector = ".MessageMeta"
     )
 
     override fun getProcessingConfig() = ProcessingConfig(
@@ -35,6 +37,9 @@ class SoroushStrategy : PlatformExtractionStrategy {
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
                 .joinToString("\n")
+        },
+        findMessageId = { data ->
+            data.customAttributes[MESSAGE_ID_DATA]?.toLongOrNull()
         }
     )
 
@@ -49,25 +54,13 @@ class SoroushStrategy : PlatformExtractionStrategy {
     """.trimIndent()
 
     override fun getIsChatPageScript() = """
-        (function() {
-            var chatContainer = document.querySelector('.messages-container, .chat-container');
-            var inputField = document.querySelector('.input-message-text, #message-input-text');
-            return chatContainer !== null && inputField !== null;
-        })();
+        var chatHeader = document.querySelector('.ChatInfo');
+        var inputField = document.querySelector('#editable-message-text');
+        return chatHeader !== null && inputField !== null;
     """.trimIndent()
 
-    override fun getSendMessageScript(message: String) = """
-        (function() {
-            var input = document.findElementById('editable-message-text');
-            var sendBtn = document.querySelector('.send-message-button, .btn-send');
-            
-            if (input && sendBtn) {
-                input.value = ${JSONObject.quote(message)};
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-                sendBtn.click();
-                return true;
-            }
-            return false;
-        })();
-    """.trimIndent()
+
+    companion object {
+        private const val MESSAGE_ID_DATA = "data-message-id"
+    }
 }
