@@ -4,6 +4,7 @@
     <string name="encryption_key_was_not_found" translatable="false">کلید موردنیاز برای رمزگشایی در دسترس نیست.</string>
     <string name="encryption_key_description" translatable="false">این یک کلید رمزنگاری است.</string>
     <string name="usage" translatable="false">استفاده</string>
+    <string name="use_key" translatable="false">استفاده از کلید</string>
     <string name="send_encryption_key" translatable="false">ارسال کلید رمزنگاری</string>
     <string name="send_message" translatable="false">ارسال پیام</string>
     <string name="message_hint" translatable="false">متن پیام</string>

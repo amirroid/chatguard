@@ -9,5 +9,6 @@ data class ProcessingConfig(
     val normalizeSpaces: Boolean = false,
     val removeUrls: Boolean = false,
     val customProcessor: ((String) -> String)? = null,
-    val findMessageId: ((ElementData) -> Long?)? = null
+    val findMessageId: ((ElementData) -> Long?)? = null,
+    val checkIsOwnMessage: ((ElementData) -> Boolean)? = null
 )

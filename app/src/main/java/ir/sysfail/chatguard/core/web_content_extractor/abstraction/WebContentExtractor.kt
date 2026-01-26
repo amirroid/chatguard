@@ -3,6 +3,10 @@ package ir.sysfail.chatguard.core.web_content_extractor.abstraction
 import android.webkit.WebView
 import ir.sysfail.chatguard.core.web_content_extractor.models.ElementData
 import ir.sysfail.chatguard.core.web_content_extractor.models.ExtractedElementMessage
+import ir.sysfail.chatguard.core.web_content_extractor.models.InjectedButton
+import ir.sysfail.chatguard.core.web_content_extractor.models.ButtonClickData
+import ir.sysfail.chatguard.core.web_content_extractor.models.ExtractedUserInfo
+import ir.sysfail.chatguard.core.web_content_extractor.models.InfoMessage
 
 /**
  * Main interface for content extraction from web views
@@ -37,6 +41,11 @@ interface WebContentExtractor {
      * Check if the current page is a chat page
      */
     suspend fun isChatPage(): Boolean
+
+    /**
+     * Observe background color changes of the current page
+     */
+    fun observeBackgroundColor(onColorChanged: (String) -> Unit)
 
     /**
      * Send a message through the chat interface
@@ -80,4 +89,42 @@ interface WebContentExtractor {
      * Convert extracted elements to message models
      */
     fun mapElementsToMessages(elements: List<ElementData>): List<ExtractedElementMessage>
+
+    /**
+     * Inject a button into a specific message
+     * @param messageId Message ID to find the message
+     * @param button The button to inject
+     * @return true if injection was successful
+     */
+    suspend fun injectButton(messageId: Long, button: InjectedButton): Boolean
+
+    /**
+     * Set up listener for button clicks
+     */
+    fun setButtonClickListener(listener: (ButtonClickData) -> Unit)
+
+    /**
+     * Remove button click listener
+     */
+    fun removeButtonClickListener()
+
+    /**
+     * Updates the text content of a specific message identified by its ID.
+     */
+    suspend fun updateMessageText(messageId: Long, newText: String): Boolean
+
+    /**
+     * Extracts user information from the web page using the configured CSS selectors.
+     */
+    suspend fun getUserInfo(): ExtractedUserInfo?
+
+    /**
+     * Inject an info into a specific element
+     */
+    suspend fun injectInfoMessage(message: InfoMessage): Boolean
+
+    /**
+     * Remove injected current info message
+     */
+    suspend fun removeInjectedInfoMessage(): Boolean
 }
