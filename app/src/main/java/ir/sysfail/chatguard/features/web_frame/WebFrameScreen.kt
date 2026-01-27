@@ -74,6 +74,7 @@ fun WebFrameScreen(
                         return@launch
                     }
                     viewModel.handleUserInfoKey(userInfo)
+                    webContentExtractor.observeSendPublicKeyButton(viewModel::sendPoeticPublicKey)
 
                     webContentExtractor.observeMessages { newElements ->
                         val messages = webContentExtractor.mapElementsToMessages(newElements)
@@ -124,6 +125,7 @@ fun WebFrameScreen(
                     )
                 }
 
+                is WebFrameEvent.SendMessage -> webContentExtractor.sendMessage(event.message)
                 else -> Unit
             }
         }

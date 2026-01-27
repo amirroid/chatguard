@@ -127,4 +127,9 @@ interface WebContentExtractor {
      * Remove injected current info message
      */
     suspend fun removeInjectedInfoMessage(): Boolean
+
+    /**
+     * Show public key input button and observe user interaction
+     */
+    fun observeSendPublicKeyButton(onSend: () -> Unit)
 }

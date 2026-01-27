@@ -30,6 +30,7 @@ class SoroushExtractionStrategy : PlatformExtractionStrategy {
             targetSelector = ".text-content.clearfix.with-meta",
             insertPosition = InsertPosition.AFTER,
         ),
+        beforeSendPublicKeySelector = ".messages-layout .MiddleHeader .HeaderActions",
         userInfoSelector = UserInfoSelector(
             fullNameSelector = ".chat-info-wrapper .info .title .fullName"
         ),

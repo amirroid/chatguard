@@ -14,6 +14,7 @@ data class SelectorConfig(
     val messageIdData: String = "",
     val sendButtonSelector: String = "",
     val inputFieldSelector: String = "",
+    val beforeSendPublicKeySelector: String = "",
     val backgroundColorVariable: String,
     val buttonInjectionConfig: ButtonInjectionConfig? = null,
     val infoMessageConfig: InfoMessageConfig? = null

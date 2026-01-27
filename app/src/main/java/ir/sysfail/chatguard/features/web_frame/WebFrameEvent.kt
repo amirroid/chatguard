@@ -17,4 +17,5 @@ sealed interface WebFrameEvent {
     ) : WebFrameEvent
 
     class UpdateMessageText(val messageId: Long, val newText: String) : WebFrameEvent
+    class SendMessage(val message: String) : WebFrameEvent
 }

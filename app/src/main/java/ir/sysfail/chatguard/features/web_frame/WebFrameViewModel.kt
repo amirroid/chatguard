@@ -148,10 +148,16 @@ class WebFrameViewModel(
         }
     }
 
+    fun sendPoeticPublicKey() = viewModelScope.launch(Dispatchers.IO) {
+        getPoeticSignedPublicKeyUseCase.invoke().onSuccess {
+            _events.send(WebFrameEvent.SendMessage(it))
+        }
+    }
+
     private suspend fun processMessageTask(task: MessageTask) {
         val isPublicKey = if (!task.data.isMyMessage) {
             verifyPoeticPublicKeyUseCase(task.data.message)
-        } else verifyPoeticPublicKeyUseCase(task.data.message)
+        } else false
 
         var updatedMessage: String? = null
 

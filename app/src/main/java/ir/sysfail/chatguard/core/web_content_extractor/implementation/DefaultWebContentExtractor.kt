@@ -1,6 +1,5 @@
 package ir.sysfail.chatguard.core.web_content_extractor.implementation
 
-import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import ir.sysfail.chatguard.core.web_content_extractor.abstraction.WebContentExtractor
@@ -270,6 +269,20 @@ class DefaultWebContentExtractor(
         return executeCustomScript(script).trim() == "true"
     }
 
+    override fun observeSendPublicKeyButton(onSend: () -> Unit) {
+        val webView = webView ?: return
+
+        executeExtraction { config, _, callbackId ->
+            observers[callbackId] = true
+            callbacks[callbackId] = {
+                onSend.invoke()
+            }
+
+            val script = buildShowPublicKeyButtonScript(config, callbackId)
+            webView.post { webView.evaluateJavascript(script, null) }
+        }
+    }
+
 
     override fun cleanup() {
         observers.keys.forEach { callbackId ->
@@ -519,6 +532,52 @@ class DefaultWebContentExtractor(
     """.trimIndent()
 
 
+    private fun buildShowPublicKeyButtonScript(
+        config: SelectorConfig,
+        callbackId: String
+    ): String {
+        val targetSelector = config.beforeSendPublicKeySelector
+
+        return """
+        (function() {
+            var target = document.querySelector('$targetSelector');
+            if (!target) return '';
+            
+            var existingButton = document.querySelector('[data-chatguard-public-key-input]');
+            if (existingButton) return '';
+            
+            var button = document.createElement('button');
+            button.setAttribute('data-chatguard-public-key-input', 'true');
+            button.className = '$BUTTON_CLASS';
+            button.style.cssText = 
+                'width: 40px;' +
+                'height: 40px;' +
+                'border-radius: 50%;' +
+                'background: #3b82f6;' +
+                'border: none;' +
+                'cursor: pointer;' +
+                'display: flex;' +
+                'align-items: center;' +
+                'justify-content: center;' +
+                'padding: 0;' +
+                'margin: 0 8px;';
+            
+            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M280-400q-33 0-56.5-23.5T200-480q0-33 23.5-56.5T280-560q33 0 56.5 23.5T360-480q0 33-23.5 56.5T280-400Zm0 160q-100 0-170-70T40-480q0-100 70-170t170-70q67 0 121.5 33t86.5 87h352l120 120-180 180-80-60-80 60-85-60h-47q-32 54-86.5 87T280-240Zm0-80q56 0 98.5-34t56.5-86h125l58 41 82-61 71 55 75-75-40-40H435q-14-52-56.5-86T280-640q-66 0-113 47t-47 113q0 66 47 113t113 47Z"/></svg>';
+            
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                $BRIDGE_NAME.onContentExtracted('$callbackId', '');
+            });
+            
+            target.parentNode.insertBefore(button, target.nextSibling);
+            
+            return '';
+        })();
+    """.trimIndent()
+    }
+
     private fun buildUpdateMessageTextScript(
         messageId: Long,
         newText: String,
@@ -698,21 +757,25 @@ class DefaultWebContentExtractor(
 
     private fun buildSendMessageScript(message: String, config: SelectorConfig): String {
         return """
-            var input = document.querySelector('${config.inputFieldSelector}');
+        var input = document.querySelector('${config.inputFieldSelector}');
+        if (!input) return false;
+        
+        if ('value' in input) input.value = ${JSONObject.quote(message)};
+        else input.innerText = ${JSONObject.quote(message)};
+        
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        setTimeout(function() {
             var sendBtn = document.querySelector('${config.sendButtonSelector}');
-            if (input && sendBtn) {
+            if (sendBtn) {
                 sendBtn.__chatguardIsSending = true;
-            
-                if ('value' in input) input.value = ${JSONObject.quote(message)};
-                else input.innerText = ${JSONObject.quote(message)};
-            
-                input.dispatchEvent(new Event('input', { bubbles: true }));
                 sendBtn.click();
-            
-                return true;
             }
-            return false;
-        """.trimIndent()
+        }, 200);
+        
+        return true;
+    """.trimIndent()
     }
 
     private fun buildObserveSendActionScript(
@@ -792,7 +855,7 @@ class DefaultWebContentExtractor(
         generateExtractionLogic(
             config,
             callbackId,
-            includeDetailedAttrs = false,
+            includeDetailedAttrs = true,
             skipVisibilityCheck = true
         )
     }
