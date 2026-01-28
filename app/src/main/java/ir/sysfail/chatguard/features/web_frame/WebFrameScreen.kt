@@ -1,10 +1,18 @@
 package ir.sysfail.chatguard.features.web_frame
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -13,11 +21,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import ir.sysfail.chatguard.R
 import ir.sysfail.chatguard.core.messanger.models.MessengerPlatform
 import ir.sysfail.chatguard.core.web_content_extractor.abstraction.WebContentExtractor
 import ir.sysfail.chatguard.core.web_content_extractor.models.InfoMessage
@@ -49,7 +63,7 @@ fun WebFrameScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize()) {
         WebView(
             state = webViewState,
             modifier = Modifier
@@ -58,6 +72,7 @@ fun WebFrameScreen(
                 .systemBarsPadding(),
             update = { view ->
                 webContentExtractor.attachToWebView(view)
+                webContentExtractor.setButtonClickListener(viewModel::handleButtonClick)
             },
             onNewPageLoaded = {
                 webContentExtractor.observeBackgroundColor(viewModel::updateBackgroundColor)
@@ -81,14 +96,58 @@ fun WebFrameScreen(
                         viewModel.onNewMessagesDetected(messages)
                     }
 
-                    webContentExtractor.observeSendAction { message ->
-                    }
+                    webContentExtractor.observeSendAction(viewModel::handleSendMessage)
+                    webContentExtractor.executeInitialScript()
                 }
             }
         )
 
+        webViewState.loadingError?.let { error ->
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.an_error_occurred_in_loading),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    error.message?.let { message ->
+                        Text(
+                            message,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.alpha(.7f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Button(onClick = webViewState::reload) {
+                        Text(stringResource(R.string.retry))
+                    }
+                }
+            }
+        }
+
         if (webViewState.isLoading) {
-            CircularProgressIndicator()
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.Center
+            ) {
+                val progress by animateFloatAsState(
+                    webViewState.progress
+                )
+                CircularProgressIndicator(progress = { progress })
+            }
         }
     }
 
@@ -126,7 +185,12 @@ fun WebFrameScreen(
                 }
 
                 is WebFrameEvent.SendMessage -> webContentExtractor.sendMessage(event.message)
-                else -> Unit
+                is WebFrameEvent.UpdateMessageText -> webContentExtractor.updateMessageText(
+                    event.messageId,
+                    event.newText
+                )
+
+                is WebFrameEvent.RefreshWebView -> webViewState.reload()
             }
         }
     }

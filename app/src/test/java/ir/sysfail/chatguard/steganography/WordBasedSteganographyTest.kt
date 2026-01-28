@@ -66,6 +66,29 @@ class WordBasedSteganographyTest {
     }
 
     @Test
+    fun `encode and decode should restore long message`() = runTest {
+        corpusProvider.load().getOrThrow()
+
+        val originalText = buildString {
+            repeat(2000) {
+                append("This is a long test message number $it. ")
+                if (it % 10 == 0) append("\n")
+            }
+        }
+
+        val originalData = originalText.toByteArray()
+
+        val poeticText = encoder.encode(originalData).getOrThrow()
+
+        println("Original length: ${originalData.size}")
+        println("Encoded length: ${poeticText.length}")
+
+        val decodedData = decoder.decode(poeticText).getOrThrow()
+
+        assertArrayEquals(originalData, decodedData)
+    }
+
+    @Test
     fun `encoded text should only contain corpus words`() = runTest {
         corpusProvider.load().getOrThrow()
 

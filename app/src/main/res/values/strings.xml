@@ -23,4 +23,6 @@
     <string name="accessibility_permission_description" translatable="false">این مجوز برای تشخیص و خواندن محتوای صفحه در اپلیکیشن‌های پیام‌رسان پشتیبانی‌شده استفاده می‌شود و هیچ داده‌ای خارج از این محدوده ذخیره یا ارسال نمی‌شود.</string>
     <string name="access_permission" translatable="false">دریافت دسترسی</string>
     <string name="permission_accepted" translatable="false">دسترسی اعطا شده</string>
+    <string name="an_error_occurred_in_loading" translatable="false">مشکلی در بارگذاری صفحه پیش امده است...</string>
+    <string name="retry" translatable="false">تلاش مجدد</string>
 </resources>

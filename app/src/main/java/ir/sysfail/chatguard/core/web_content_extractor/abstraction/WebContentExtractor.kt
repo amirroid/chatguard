@@ -92,11 +92,8 @@ interface WebContentExtractor {
 
     /**
      * Inject a button into a specific message
-     * @param messageId Message ID to find the message
-     * @param button The button to inject
-     * @return true if injection was successful
      */
-    suspend fun injectButton(messageId: Long, button: InjectedButton): Boolean
+    suspend fun injectButton(messageId: String, button: InjectedButton): Boolean
 
     /**
      * Set up listener for button clicks
@@ -111,7 +108,7 @@ interface WebContentExtractor {
     /**
      * Updates the text content of a specific message identified by its ID.
      */
-    suspend fun updateMessageText(messageId: Long, newText: String): Boolean
+    suspend fun updateMessageText(messageId: String, newText: String): Boolean
 
     /**
      * Extracts user information from the web page using the configured CSS selectors.
@@ -132,4 +129,10 @@ interface WebContentExtractor {
      * Show public key input button and observe user interaction
      */
     fun observeSendPublicKeyButton(onSend: () -> Unit)
+
+    /**
+     * Executes initial JavaScript setup scripts in the WebView.
+     */
+    suspend fun executeInitialScript()
+
 }

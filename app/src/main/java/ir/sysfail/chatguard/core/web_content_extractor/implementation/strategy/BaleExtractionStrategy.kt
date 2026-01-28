@@ -4,40 +4,34 @@ import ir.sysfail.chatguard.core.messanger.models.MessengerPlatform
 import ir.sysfail.chatguard.core.web_content_extractor.abstraction.PlatformExtractionStrategy
 import ir.sysfail.chatguard.core.web_content_extractor.models.*
 
-class SoroushExtractionStrategy : PlatformExtractionStrategy {
-    override val platform = MessengerPlatform.SOROUSH
+class BaleExtractionStrategy : PlatformExtractionStrategy {
+    override val platform = MessengerPlatform.BALE
 
     override fun getSelectorConfig() = SelectorConfig(
-        containerSelector = ".MessageList",
-        messageParentSelector = ".Message.message-list-item",
-        messageSelector = ".text-content.clearfix.with-meta",
+        containerSelector = ".JL_RzJ",
+        messageParentSelector = ".message-item",
+        messageSelector = ".KTwPFW AiYtbO .p",
         messageIdData = MESSAGE_ID_DATA,
         ignoreSelectors = listOf(
-            "[data-ignore-on-paste=\"true\"]",
-            ".message-time",
-            ".MessageMeta",
-            ".MessageOutgoingStatus",
-            ".Transition",
-            ".icon",
-            ".sender-title"
+            ".time",
         ),
         attributesToExtract = listOf(MESSAGE_ID_DATA),
-        sendButtonSelector = ".send.main-button",
-        inputFieldSelector = "#editable-message-text",
-        messageMetaSelector = ".MessageMeta",
-        backgroundColorVariable = "--color-background",
+        sendButtonSelector = ".FRqrfO.RaTWwR",
+        inputFieldSelector = "#main-message-input",
+        messageMetaSelector = ".time",
+        backgroundColorVariable = "--color-neutrals-n-00",
         buttonInjectionConfig = ButtonInjectionConfig(
-            targetSelector = ".text-content.clearfix.with-meta",
-            insertPosition = InsertPosition.AFTER,
+            targetSelector = ".KTwPFW .AiYtbO",
+            insertPosition = InsertPosition.APPEND,
         ),
-        beforeSendPublicKeySelector = ".messages-layout .MiddleHeader .HeaderActions",
+        beforeSendPublicKeySelector = ".tf8V56",
         userInfoSelector = UserInfoSelector(
-            fullNameSelector = ".chat-info-wrapper .info .title .fullName"
+            fullNameSelector = ".nMlHDG"
         ),
         infoMessageConfig = InfoMessageConfig(
-            targetSelector = ".messages-layout .MiddleHeader"
+            targetSelector = ".kvGVCY"
         ),
-        chatHeader = ".ChatInfo"
+        chatHeader = ".kvGVCY"
     )
 
     override fun getProcessingConfig() = ProcessingConfig(
@@ -48,7 +42,7 @@ class SoroushExtractionStrategy : PlatformExtractionStrategy {
             data.customAttributes[MESSAGE_ID_DATA].takeIf { !it.isNullOrBlank() }
         },
         checkIsOwnMessage = { data ->
-            data.className.split(" ").contains("own")
+            data.className.split(" ").contains("LtdUd1")
         }
     )
 
@@ -59,6 +53,6 @@ class SoroushExtractionStrategy : PlatformExtractionStrategy {
         data.copy(text = data.text.replace(Regex("\\s+"), " ").trim())
 
     companion object {
-        private const val MESSAGE_ID_DATA = "data-message-id"
+        private const val MESSAGE_ID_DATA = "data-sid"
     }
 }

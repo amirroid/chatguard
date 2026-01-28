@@ -22,6 +22,5 @@ enum class ButtonType {
  */
 data class ButtonClickData(
     val buttonType: ButtonType,
-    val messageId: Long?,
-    val messageText: String
+    val messageId: String?,
 )

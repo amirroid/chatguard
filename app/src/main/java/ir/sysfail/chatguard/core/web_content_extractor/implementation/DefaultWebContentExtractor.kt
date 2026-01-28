@@ -37,12 +37,6 @@ class DefaultWebContentExtractor(
         setupJavaScriptBridge(webView)
         setupButtonBridge(webView)
         isInitialized = true
-
-        strategy.getPreExtractionScript()?.let { script ->
-            webView.post {
-                webView.evaluateJavascript("(function() { $script })();", null)
-            }
-        }
     }
 
     override fun detachFromWebView() {
@@ -78,19 +72,12 @@ class DefaultWebContentExtractor(
     private fun setupButtonBridge(webView: WebView) {
         webView.addJavascriptInterface(object {
             @JavascriptInterface
-            fun onButtonClick(buttonType: String, messageId: String, messageText: String) {
-                val type = try {
-                    ButtonType.valueOf(buttonType)
-                } catch (e: Exception) {
-                    ButtonType.CHOOSE_KEY
-                }
-
-                val id = messageId.toLongOrNull()
+            fun onButtonClick(buttonType: String, messageId: String) {
+                val type = ButtonType.valueOf(buttonType)
 
                 val data = ButtonClickData(
                     buttonType = type,
-                    messageId = id,
-                    messageText = messageText
+                    messageId = messageId,
                 )
 
                 buttonClickListener?.invoke(data)
@@ -185,12 +172,30 @@ class DefaultWebContentExtractor(
 
             val wrapped = """
                 (function() {
-                    try {
-                        var result = (function() { $script })();
-                        $BRIDGE_NAME.onContentExtracted('$callbackId', JSON.stringify(result || ''));
-                    } catch(e) {
-                        $BRIDGE_NAME.onError('$callbackId', e.message || 'Script execution failed');
+                  try {
+                    var result = (function() { 
+                      $script 
+                    })();
+                
+                    if (result && typeof result.then === 'function') {
+                      // Promise
+                      result.then(function(value) {
+                        $BRIDGE_NAME.onContentExtracted(
+                          '$callbackId',
+                          JSON.stringify(value)
+                        );
+                      }).catch(function(e) {
+                        $BRIDGE_NAME.onError('$callbackId', e?.message || 'Promise failed');
+                      });
+                    } else {
+                      $BRIDGE_NAME.onContentExtracted(
+                        '$callbackId',
+                        JSON.stringify(result)
+                      );
                     }
+                  } catch(e) {
+                    $BRIDGE_NAME.onError('$callbackId', e.message || 'Script execution failed');
+                  }
                 })();
             """.trimIndent()
 
@@ -218,7 +223,7 @@ class DefaultWebContentExtractor(
     }
 
     override suspend fun isChatPage(): Boolean =
-        executeCustomScript(strategy.getIsChatPageScript())
+        executeCustomScript(buildIsChatPageScript(strategy.getSelectorConfig()))
             .let { it.trim() == "true" }
 
     override fun observeBackgroundColor(onColorChanged: (String) -> Unit) {
@@ -246,7 +251,7 @@ class DefaultWebContentExtractor(
         ).let { it.trim() == "true" }
     }
 
-    override suspend fun injectButton(messageId: Long, button: InjectedButton): Boolean {
+    override suspend fun injectButton(messageId: String, button: InjectedButton): Boolean {
         val config = strategy.getSelectorConfig()
         val injectionConfig = config.buttonInjectionConfig ?: return false
 
@@ -280,6 +285,12 @@ class DefaultWebContentExtractor(
 
             val script = buildShowPublicKeyButtonScript(config, callbackId)
             webView.post { webView.evaluateJavascript(script, null) }
+        }
+    }
+
+    override suspend fun executeInitialScript() {
+        strategy.getInitialExecutionScript()?.let {
+            executeCustomScript(it)
         }
     }
 
@@ -442,7 +453,7 @@ class DefaultWebContentExtractor(
 
     private fun generateCallbackId() = "callback_${System.currentTimeMillis()}"
 
-    override suspend fun updateMessageText(messageId: Long, newText: String): Boolean {
+    override suspend fun updateMessageText(messageId: String, newText: String): Boolean {
         val config = strategy.getSelectorConfig()
         val script = buildUpdateMessageTextScript(messageId, newText, config)
         return executeCustomScript(script).trim() == "true"
@@ -466,6 +477,49 @@ class DefaultWebContentExtractor(
         }
     }
 
+    private fun buildIsChatPageScript(config: SelectorConfig) = """
+          var timeout = 5000;
+          var resolved = false;
+        
+          function check() {
+            return !!(
+              document.querySelector('${config.chatHeader}') &&
+              document.querySelector('${config.inputFieldSelector}')
+            );
+          }
+        
+          return new Promise(function (resolve) {
+            if (check()) {
+              resolve(true);
+              return;
+            }
+       
+            var timer = setTimeout(function () {
+              if (resolved) return;
+              resolved = true;
+              observer.disconnect();
+              resolve(false);
+            }, timeout);
+        
+            var observer = new MutationObserver(function () {
+              if (resolved) return;
+        
+              if (check()) {
+                resolved = true;
+                clearTimeout(timer);
+                observer.disconnect();
+                resolve(true);
+              }
+            });
+        
+            observer.observe(document.body, {
+              childList: true,
+              subtree: true
+            });
+          });
+    """.trimIndent()
+
+
     private fun buildInjectInfoMessageScript(
         message: InfoMessage,
         config: InfoMessageConfig
@@ -476,29 +530,33 @@ class DefaultWebContentExtractor(
         }
 
         return """
-                var target = document.querySelector('${config.targetSelector}');
-                if (!target) return false;
+        var target = document.querySelector('${config.targetSelector}');
+        if (!target) return false;
 
-                var div = document.createElement('div');
-                div.className = 'chatguard-info-message';
-                div.style.cssText =
-                    'background:$bgColor;' +
-                    'color:#fff;' +
-                    'width:100%;' +
-                    'box-sizing:border-box;' +
-                    'padding:6px 8px;' +
-                    'font-size:14px;';
-
-                div.textContent = ${JSONObject.quote(message.text)};
-
-                ${
-            if (config.insertPosition == InsertPosition.AFTER)
-                "target.parentNode.insertBefore(div, target.nextSibling);"
-            else
-                "target.parentNode.insertBefore(div, target);"
+        var computedStyle = window.getComputedStyle(target);
+        if (computedStyle.position === 'static') {
+            target.style.position = 'relative';
         }
 
-                return true;
+        var div = document.createElement('div');
+        div.className = 'chatguard-info-message';
+        div.style.cssText =
+            'position:absolute;' +
+            'top:100%;' +
+            'left:0;' +
+            'background:$bgColor;' +
+            'color:#fff;' +
+            'width:100%;' +
+            'box-sizing:border-box;' +
+            'padding:6px 8px;' +
+            'font-size:14px;' +
+            'z-index:9999;';
+
+        div.textContent = ${JSONObject.quote(message.text)};
+
+        target.appendChild(div);
+
+        return true;
     """.trimIndent()
     }
 
@@ -567,6 +625,7 @@ class DefaultWebContentExtractor(
             button.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 
                 $BRIDGE_NAME.onContentExtracted('$callbackId', '');
             });
@@ -579,7 +638,7 @@ class DefaultWebContentExtractor(
     }
 
     private fun buildUpdateMessageTextScript(
-        messageId: Long,
+        messageId: String,
         newText: String,
         config: SelectorConfig
     ): String {
@@ -622,7 +681,7 @@ class DefaultWebContentExtractor(
     }
 
     private fun buildInjectButtonScript(
-        messageId: Long,
+        messageId: String,
         button: InjectedButton,
         config: SelectorConfig,
         injectionConfig: ButtonInjectionConfig
@@ -666,7 +725,6 @@ class DefaultWebContentExtractor(
             }
             
             var textContent = messageParent.querySelector('${config.messageSelector}');
-            var messageText = textContent ? (textContent.textContent || textContent.innerText || '').trim() : '';
             
             var button = document.createElement('button');
             button.className = '$BUTTON_CLASS';
@@ -682,8 +740,7 @@ class DefaultWebContentExtractor(
                 
                 $BUTTON_BRIDGE_NAME.onButtonClick(
                     ${JSONObject.quote(button.buttonType.name)},
-                    messageId,
-                    messageText
+                    messageId
                 );
             });
             
@@ -757,25 +814,65 @@ class DefaultWebContentExtractor(
 
     private fun buildSendMessageScript(message: String, config: SelectorConfig): String {
         return """
-        var input = document.querySelector('${config.inputFieldSelector}');
-        if (!input) return false;
+            var inputs = document.querySelectorAll('${config.inputFieldSelector}');
+            if (inputs.length === 0) return false;
         
-        if ('value' in input) input.value = ${JSONObject.quote(message)};
-        else input.innerText = ${JSONObject.quote(message)};
+            inputs.forEach(function(input) {
+                var valueSet = false;
+            
+                try {
+                    var setter;
+                    if (input.tagName === 'TEXTAREA') {
+                        setter = Object.getOwnPropertyDescriptor(
+                            window.HTMLTextAreaElement.prototype,
+                            'value'
+                        ).set;
+                    } else {
+                        setter = Object.getOwnPropertyDescriptor(
+                            window.HTMLInputElement.prototype,
+                            'value'
+                        ).set;
+                    }
+            
+                    setter.call(input, ${JSONObject.quote(message)});
+                    valueSet = true;
+                } catch (e) { }
+            
+                if (!valueSet) {
+                    if ('value' in input) {
+                        input.value = ${JSONObject.quote(message)};
+                    } else {
+                        input.innerText = ${JSONObject.quote(message)};
+                    }
+                }
+            
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            });
         
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
+            setTimeout(function () {
+                var sendBtn = document.querySelector('${config.sendButtonSelector}');
+                if (sendBtn) {
+                    sendBtn.__chatguardIsSending = true;
+                    var clicked = sendBtn.click();
+                    
+                    if (clicked === false || clicked === undefined) {
+                        sendBtn.dispatchEvent(new MouseEvent('mousedown', {
+                            bubbles: true,
+                            cancelable: true,
+                            view: window
+                        }));
+                        sendBtn.dispatchEvent(new MouseEvent('mouseup', {
+                            bubbles: true,
+                            cancelable: true,
+                            view: window
+                        }));
+                    }
+                }
+            }, 200);
         
-        setTimeout(function() {
-            var sendBtn = document.querySelector('${config.sendButtonSelector}');
-            if (sendBtn) {
-                sendBtn.__chatguardIsSending = true;
-                sendBtn.click();
-            }
-        }, 200);
-        
-        return true;
-    """.trimIndent()
+            return true;
+        """.trimIndent()
     }
 
     private fun buildObserveSendActionScript(
@@ -784,31 +881,43 @@ class DefaultWebContentExtractor(
     ) = """
         (function() {
             var input = document.querySelector('${config.inputFieldSelector}');
-            var sendBtn = document.querySelector('${config.sendButtonSelector}');
-            if (!input || !sendBtn) return false;
-        
-            if (sendBtn.__chatguardSendObserverAttached) return true;
-            sendBtn.__chatguardSendObserverAttached = true;
-        
-            sendBtn.addEventListener('click', function(event) {
-                if (sendBtn.__chatguardIsSending) {
-                    sendBtn.__chatguardIsSending = false;
-                    return;
-                }
-        
-                event.stopImmediatePropagation();
-                event.preventDefault();
-        
-                var messageText = input.value || input.innerText || input.textContent || '';
-                $BRIDGE_NAME.onContentExtracted(
-                    '$callbackId',
-                    JSON.stringify(messageText)
-                );
-            }, true);
-        
+            if (!input) return false;
+            
+            function attachListener(btn) {
+                if (btn.__chatguardSendObserverAttached) return;
+                btn.__chatguardSendObserverAttached = true;
+                btn.addEventListener('click', function(event) {
+                    if (btn.__chatguardIsSending) {
+                        btn.__chatguardIsSending = false;
+                        return;
+                    }
+                    event.stopImmediatePropagation();
+                    event.preventDefault();
+                    var messageText = input.value || input.innerText || input.textContent || '';
+                    $BRIDGE_NAME.onContentExtracted(
+                        '$callbackId',
+                        messageText
+                    );
+                }, true);
+            }
+            
+            var existingBtn = document.querySelector('${config.sendButtonSelector}');
+            if (existingBtn) attachListener(existingBtn);
+            
+            var observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList') {
+                        var btn = document.querySelector('${config.sendButtonSelector}');
+                        if (btn) attachListener(btn);
+                    }
+                });
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            
             return true;
         })();
     """.trimIndent()
+
 
     private fun buildRemoveSendActionObserverScript(config: SelectorConfig) = """
         (function() {

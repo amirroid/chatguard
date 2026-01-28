@@ -34,14 +34,7 @@ interface PlatformExtractionStrategy {
     fun transformData(data: ElementData): ElementData = data
     
     /**
-     * Optional: Custom JavaScript code to inject before extraction
-     * Useful for manipulating DOM before extraction
+     * Optional: Custom JavaScript code to inject after load completed
      */
-    fun getPreExtractionScript(): String? = null
-    
-    /**
-     * Check if current page is a chat page
-     * @return JavaScript code that returns boolean
-     */
-    fun getIsChatPageScript(): String
+    fun getInitialExecutionScript(): String? = null
 }

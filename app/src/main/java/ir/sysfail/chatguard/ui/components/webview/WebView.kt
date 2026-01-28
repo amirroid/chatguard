@@ -5,7 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.view.View
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
@@ -48,6 +50,7 @@ fun WebView(
                     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                         super.onPageStarted(view, url, favicon)
                         state.isLoading = true
+                        state.loadingError = null
                     }
 
                     override fun onPageFinished(view: WebView?, url: String?) {
@@ -55,8 +58,42 @@ fun WebView(
                         state.isLoading = false
                         state.canGoBack = canGoBack()
                         state.canGoForward = canGoForward()
+                    }
 
+                    override fun onReceivedError(
+                        view: WebView,
+                        request: WebResourceRequest,
+                        error: WebResourceError
+                    ) {
+                        if (!request.isForMainFrame) return
+                        val message = error.description?.toString()?.let {
+                            "$it (${error.errorCode})"
+                        }
+
+                        state.loadingError = WebViewError(message)
+                        super.onReceivedError(view, request, error)
+                    }
+
+
+                    override fun doUpdateVisitedHistory(
+                        view: WebView?,
+                        url: String?,
+                        isReload: Boolean
+                    ) {
                         onNewPageLoaded.invoke()
+                        super.doUpdateVisitedHistory(view, url, isReload)
+                    }
+
+
+                    override fun onReceivedHttpError(
+                        view: WebView,
+                        request: WebResourceRequest,
+                        errorResponse: WebResourceResponse
+                    ) {
+                        if (!request.isForMainFrame) return
+                        val message = "${errorResponse.reasonPhrase} (${errorResponse.statusCode})"
+
+                        state.loadingError = WebViewError(message)
                     }
 
                     override fun shouldOverrideUrlLoading(

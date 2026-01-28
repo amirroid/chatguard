@@ -8,14 +8,15 @@ sealed interface WebFrameEvent {
     data class ShowInfoMessage(val message: String, val type: InfoMessageType) : WebFrameEvent
     data class ShowInfoMessageResource(val message: Int, val type: InfoMessageType) : WebFrameEvent
     data object ClearInfoMessage : WebFrameEvent
+    data object RefreshWebView : WebFrameEvent
 
     data class InjectButton(
         @field:StringRes val text: Int,
         val buttonId: String,
-        val messageId: Long,
+        val messageId: String,
         val buttonType: ButtonType
     ) : WebFrameEvent
 
-    class UpdateMessageText(val messageId: Long, val newText: String) : WebFrameEvent
+    class UpdateMessageText(val messageId: String, val newText: String) : WebFrameEvent
     class SendMessage(val message: String) : WebFrameEvent
 }

@@ -115,4 +115,79 @@ class FullFlowCryptoSteganographyTest {
 
         assertEquals(message, String(decrypted))
     }
+
+    @Test
+    fun `full flow encrypt decrypt long message using signed poetic public key`() = runTest {
+        corpusProvider.load().getOrThrow()
+
+        val alice = keyManager.generateIdentityKeyPair().getOrThrow()
+        val bob = keyManager.generateIdentityKeyPair().getOrThrow()
+
+        val message = buildString {
+            repeat(2000) {
+                append("This is a long test message number $it. ")
+                if (it % 10 == 0) append("\n")
+            }
+        }
+
+        val signature = signatureValidator.sign(
+            bob.privateKey,
+            bob.publicKey.encoded
+        ).getOrThrow()
+
+        val signedPublicKey = SignedPublicKey(
+            publicKey = bob.publicKey.encoded,
+            signature = signature
+        )
+
+        val signedKeyBytes = SignedPublicKeySerializer.serialize(signedPublicKey)
+        val poeticText = poeticEncoder.encode(signedKeyBytes).getOrThrow()
+
+        val decodedBytes = poeticDecoder.decode(poeticText).getOrThrow()
+        val decodedSignedKey = SignedPublicKeySerializer.deserialize(decodedBytes)
+
+        val reconstructedBobPublicKey = keyManager
+            .reconstructPublicKey(decodedSignedKey.publicKey)
+            .getOrThrow()
+
+        val isValid = signatureValidator.verify(
+            reconstructedBobPublicKey,
+            decodedSignedKey.publicKey,
+            decodedSignedKey.signature
+        ).getOrThrow()
+
+        assertTrue(isValid)
+
+        val envelope = cryptoOrchestrator.encryptMessage(
+            message.toByteArray(),
+            alice.privateKey,
+            alice.publicKey,
+            reconstructedBobPublicKey,
+        ).getOrThrow()
+
+        val envelopeBytes = CryptoEnvelopeSerializer.serialize(envelope)
+        val poeticEnvelope = poeticEncoder.encode(envelopeBytes).getOrThrow()
+
+        val decodedEnvelopeBytes = poeticDecoder.decode(poeticEnvelope).getOrThrow()
+        val decodedEnvelope = CryptoEnvelopeSerializer.deserialize(decodedEnvelopeBytes)
+
+        val decrypted = cryptoOrchestrator.decryptMessage(
+            decodedEnvelope,
+            bob.privateKey,
+            bob.publicKey,
+            alice.publicKey,
+            false
+        ).getOrThrow()
+
+        val myDecrypted = cryptoOrchestrator.decryptMessage(
+            decodedEnvelope,
+            alice.privateKey,
+            alice.publicKey,
+            bob.publicKey,
+            true
+        ).getOrThrow()
+
+        assertEquals(message, String(decrypted))
+        assertEquals(message, String(myDecrypted))
+    }
 }

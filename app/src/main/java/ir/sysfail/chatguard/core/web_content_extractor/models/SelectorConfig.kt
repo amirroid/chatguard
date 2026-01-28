@@ -17,7 +17,8 @@ data class SelectorConfig(
     val beforeSendPublicKeySelector: String = "",
     val backgroundColorVariable: String,
     val buttonInjectionConfig: ButtonInjectionConfig? = null,
-    val infoMessageConfig: InfoMessageConfig? = null
+    val infoMessageConfig: InfoMessageConfig? = null,
+    val chatHeader: String = ""
 )
 
 data class ButtonInjectionConfig(

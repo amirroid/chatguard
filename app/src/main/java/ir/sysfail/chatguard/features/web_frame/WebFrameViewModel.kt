@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ir.sysfail.chatguard.R
 import ir.sysfail.chatguard.core.messanger.models.MessengerPlatform
+import ir.sysfail.chatguard.core.web_content_extractor.models.ButtonClickData
 import ir.sysfail.chatguard.core.web_content_extractor.models.ButtonType
 import ir.sysfail.chatguard.core.web_content_extractor.models.ExtractedElementMessage
 import ir.sysfail.chatguard.core.web_content_extractor.models.ExtractedUserInfo
@@ -44,11 +45,13 @@ class WebFrameViewModel(
     val state = _state.asStateFlow()
 
     private val taskQueue = Channel<MessageTask>(Channel.UNLIMITED)
-    private val processedMessageIds = ConcurrentHashMap.newKeySet<Long>()
-    private val taskResults = ConcurrentHashMap<Long, TaskResult>()
+    private val processedMessageIds = ConcurrentHashMap.newKeySet<String>()
+    private val taskResults = ConcurrentHashMap<String, TaskResult>()
 
     private val _events = Channel<WebFrameEvent>()
     val events = _events.receiveAsFlow()
+
+    private var currentUsername: String? = null
 
     private var loadsCount = 0
 
@@ -66,6 +69,8 @@ class WebFrameViewModel(
     }
 
     fun handleUserInfoKey(userInfo: ExtractedUserInfo) = viewModelScope.launch(Dispatchers.IO) {
+        currentUsername = userInfo.username
+
         getPublicKeyUseCase(userInfo.username, platform.packageName)
             .onSuccess {
                 _events.send(WebFrameEvent.ClearInfoMessage)
@@ -115,7 +120,7 @@ class WebFrameViewModel(
         }
     }
 
-    private suspend fun emitResultEvents(messageId: Long, result: TaskResult) {
+    private suspend fun emitResultEvents(messageId: String, result: TaskResult) {
         if (result.isPublicKey) {
             _events.send(
                 WebFrameEvent.InjectButton(
@@ -154,6 +159,43 @@ class WebFrameViewModel(
         }
     }
 
+    private suspend fun savePublicKey(publicKey: CryptoKey) {
+        addUserPublicKeyUseCase(
+            packageName = platform.packageName,
+            username = currentUsername ?: return,
+            key = publicKey
+        ).onSuccess {
+            _events.send(WebFrameEvent.RefreshWebView)
+        }
+    }
+
+    fun handleSendMessage(message: String) = viewModelScope.launch {
+
+        _userPublicKey.filterNotNull().firstOrNull()?.onSuccess { key ->
+            encryptionUseCase(message, key)
+                .onSuccess { encryptedMessage ->
+                    _events.send(WebFrameEvent.SendMessage(encryptedMessage))
+                }
+        }?.onFailure {
+            _events.send(WebFrameEvent.SendMessage(message))
+        }
+    }
+
+    fun handleButtonClick(data: ButtonClickData) {
+        val messageResult = taskResults[data.messageId] ?: return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            when (data.buttonType) {
+                ButtonType.CHOOSE_KEY -> {
+                    getPoeticPublicKeyUseCase(messageResult.realMessage)
+                        .onSuccess { publicKey ->
+                            savePublicKey(publicKey)
+                        }
+                }
+            }
+        }
+    }
+
     private suspend fun processMessageTask(task: MessageTask) {
         val isPublicKey = if (!task.data.isMyMessage) {
             verifyPoeticPublicKeyUseCase(task.data.message)
@@ -172,6 +214,7 @@ class WebFrameViewModel(
         val result = TaskResult(
             loadIndex = loadsCount,
             isPublicKey = isPublicKey,
+            realMessage = task.data.message,
             updatedMessage = updatedMessage
         )
 
@@ -194,5 +237,6 @@ private data class MessageTask(
 private data class TaskResult(
     val loadIndex: Int,
     val isPublicKey: Boolean,
+    val realMessage: String,
     val updatedMessage: String?
 )
