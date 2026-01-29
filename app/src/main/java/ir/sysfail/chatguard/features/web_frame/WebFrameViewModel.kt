@@ -170,7 +170,6 @@ class WebFrameViewModel(
     }
 
     fun handleSendMessage(message: String) = viewModelScope.launch {
-
         _userPublicKey.filterNotNull().firstOrNull()?.onSuccess { key ->
             encryptionUseCase(message, key)
                 .onSuccess { encryptedMessage ->

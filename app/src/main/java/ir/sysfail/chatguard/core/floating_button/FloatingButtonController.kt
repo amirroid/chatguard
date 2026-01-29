@@ -1,6 +1,7 @@
 package ir.sysfail.chatguard.core.floating_button
 
 import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
@@ -29,33 +30,54 @@ class FloatingButtonController(
     private var layoutParams: WindowManager.LayoutParams? = null
 
     private var isShowAnimationInProgress = false
-    private var isCloseAnimationInProgress = false
+    private var isHideAnimationInProgress = false
+    private var isVisible = false
 
     private var isIdle = false
     private var buttonColor = IDLE_COLOR
+
+    private var moveAnimator: ValueAnimator? = null
+    private var isDragging = false
 
     fun setOnClickListener(listener: () -> Unit) {
         clickListener = listener
     }
 
     fun show() {
-        if (buttonView != null) return
+        if (isVisible && !isHideAnimationInProgress) return
+        if (isShowAnimationInProgress) return
 
-        buttonView = createButtonView()
-        layoutParams = createLayoutParams()
+        if (isHideAnimationInProgress) {
+            buttonView?.animate()?.cancel()
+            isHideAnimationInProgress = false
+        }
 
-        windowManager.addView(buttonView, layoutParams)
+        if (buttonView == null) {
+            buttonView = createButtonView()
+            layoutParams = createLayoutParams()
+            windowManager.addView(buttonView, layoutParams)
+        }
+
+        isVisible = true
         animateShow(buttonView!!)
         scheduleIdle()
     }
 
     fun hide() {
+        if (!isVisible || isHideAnimationInProgress) return
+        if (isShowAnimationInProgress) return
+
         val view = buttonView ?: return
+        isVisible = false
         cancelIdle()
+        cancelMoveAnimation()
         animateHide(view) {
-            windowManager.removeView(view)
+            runCatching {
+                windowManager.removeView(view)
+            }
             buttonView = null
             layoutParams = null
+            isIdle = false
         }
     }
 
@@ -73,11 +95,6 @@ class FloatingButtonController(
             scaleX = 0.7f
             scaleY = 0.7f
             alpha = 0f
-
-//            setOnClickListener {
-//                exitIdle()
-//                scheduleIdle()
-//            }
 
             setOnTouchListener(createDragTouchListener())
         }
@@ -107,30 +124,52 @@ class FloatingButtonController(
         var startY = 0
         var touchX = 0f
         var touchY = 0f
+        var hasMoved = false
 
         return View.OnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    hasMoved = false
+                    isDragging = true
                     exitIdle()
+                    cancelMoveAnimation()
                     animatePress(true)
-                    startX = layoutParams!!.x
-                    startY = layoutParams!!.y
+                    startX = layoutParams?.x ?: 0
+                    startY = layoutParams?.y ?: 0
                     touchX = event.rawX
                     touchY = event.rawY
-                    clickListener?.invoke()
                     true
                 }
 
                 MotionEvent.ACTION_MOVE -> {
-                    layoutParams!!.x = startX + (event.rawX - touchX).toInt()
-                    layoutParams!!.y = startY + (event.rawY - touchY).toInt()
-                    windowManager.updateViewLayout(buttonView, layoutParams)
+                    val params = layoutParams ?: return@OnTouchListener false
+                    val view = buttonView ?: return@OnTouchListener false
+
+                    val deltaX = (event.rawX - touchX).toInt()
+                    val deltaY = (event.rawY - touchY).toInt()
+
+                    if (kotlin.math.abs(deltaX) > 10 || kotlin.math.abs(deltaY) > 10) {
+                        hasMoved = true
+                    }
+
+                    params.x = startX + deltaX
+                    params.y = startY + deltaY
+
+                    runCatching {
+                        windowManager.updateViewLayout(view, params)
+                    }
                     true
                 }
 
                 MotionEvent.ACTION_UP,
                 MotionEvent.ACTION_CANCEL -> {
+                    isDragging = false
                     animatePress(false)
+
+                    if (!hasMoved) {
+                        clickListener?.invoke()
+                    }
+
                     snapToEdge()
                     scheduleIdle()
                     true
@@ -160,15 +199,26 @@ class FloatingButtonController(
         val params = layoutParams ?: return
         val view = buttonView ?: return
 
-        ObjectAnimator.ofInt(from, to).apply {
+        cancelMoveAnimation()
+
+        moveAnimator = ObjectAnimator.ofInt(from, to).apply {
             duration = 420
             interpolator = FastOutSlowInInterpolator()
             addUpdateListener {
-                params.x = it.animatedValue as Int
-                windowManager.updateViewLayout(view, params)
+                if (buttonView != null && layoutParams != null) {
+                    params.x = it.animatedValue as Int
+                    runCatching {
+                        windowManager.updateViewLayout(view, params)
+                    }
+                }
             }
             start()
         }
+    }
+
+    private fun cancelMoveAnimation() {
+        moveAnimator?.cancel()
+        moveAnimator = null
     }
 
     private fun animateShow(view: View) {
@@ -185,12 +235,11 @@ class FloatingButtonController(
                 isShowAnimationInProgress = false
             }
             .start()
-
     }
 
     private fun animateHide(view: View, end: () -> Unit) {
-        if (isCloseAnimationInProgress) return
-        isCloseAnimationInProgress = true
+        if (isHideAnimationInProgress) return
+        isHideAnimationInProgress = true
 
         view.animate()
             .alpha(0f)
@@ -198,8 +247,8 @@ class FloatingButtonController(
             .scaleY(0.6f)
             .setDuration(220)
             .withEndAction {
+                isHideAnimationInProgress = false
                 end.invoke()
-                isCloseAnimationInProgress = false
             }
             .start()
     }
@@ -216,6 +265,7 @@ class FloatingButtonController(
     }
 
     private fun scheduleIdle() {
+        if (isDragging) return
         cancelIdle()
         idleRunnable = Runnable {
             enterIdle()
@@ -231,7 +281,7 @@ class FloatingButtonController(
 
     private fun enterIdle() {
         val view = buttonView ?: return
-        if (isIdle) return
+        if (isIdle || isDragging) return
         isIdle = true
 
         val size = dp(BUTTON_SIZE)
@@ -279,6 +329,7 @@ class FloatingButtonController(
             value.toFloat(),
             context.resources.displayMetrics
         ).toInt()
+
     }
 
     companion object {

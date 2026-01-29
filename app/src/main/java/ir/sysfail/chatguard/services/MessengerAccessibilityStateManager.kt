@@ -14,6 +14,7 @@ import ir.sysfail.chatguard.ui_models.chat.WindowType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,7 +36,7 @@ class MessengerAccessibilityStateManager(
     private var pendingMessage: String? = null
     private var lastChatPackage: String? = null
 
-    private val scope = CoroutineScope(Job() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val _state = MutableStateFlow(ExtractedMessengerChatUiModel())
     val state: StateFlow<ExtractedMessengerChatUiModel> = _state
@@ -50,11 +51,10 @@ class MessengerAccessibilityStateManager(
         }
     }
 
-    private fun handleSendMessage(message: String) = scope.launch {
+    private fun handleSendMessage(message: String) {
         pendingMessage = message
         lastChatPackage = currentReader?.platform?.packageName
     }
-
 
     fun onNodeChanged(
         event: AccessibilityEvent,
@@ -71,7 +71,7 @@ class MessengerAccessibilityStateManager(
             return
         }
 
-        lastNode = rootNode
+        lastNode = AccessibilityNodeInfo.obtain(rootNode)
 
         val reader = readers.firstOrNull {
             it.platform.packageName == eventPackageName
@@ -151,7 +151,7 @@ class MessengerAccessibilityStateManager(
     private fun resetReader() {
         missingReaderEventCount = 0
         currentReader = null
-        lastNode = null
+        recycleLastNode()
         keyCheckJob?.cancel()
         _state.value = _state.value.copy(windowType = WindowType.NON_MESSENGER)
         setNonChatState()
@@ -162,6 +162,10 @@ class MessengerAccessibilityStateManager(
         _state.value = ExtractedMessengerChatUiModel(
             windowType = WindowType.NON_CHAT
         )
+    }
+
+    private fun recycleLastNode() {
+        lastNode = null
     }
 
     fun updateBridge() {
@@ -182,7 +186,7 @@ class MessengerAccessibilityStateManager(
     fun cleanup() {
         keyCheckJob?.cancel()
         scope.cancel()
-        lastNode = null
+        recycleLastNode()
         currentReader = null
         pendingMessage = null
         lastChatPackage = null

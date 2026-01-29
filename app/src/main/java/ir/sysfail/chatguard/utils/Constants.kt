@@ -8,4 +8,5 @@ object Constants {
 
 
     const val PREFS_NAME = "chatguard_secure_keys"
+    const val CHANNEL_ID = "chatguard"
 }

@@ -10,7 +10,7 @@ class BaleExtractionStrategy : PlatformExtractionStrategy {
     override fun getSelectorConfig() = SelectorConfig(
         containerSelector = ".JL_RzJ",
         messageParentSelector = ".message-item",
-        messageSelector = ".KTwPFW AiYtbO .p",
+        messageSelector = ".KTwPFW.AiYtbO .p",
         messageIdData = MESSAGE_ID_DATA,
         ignoreSelectors = listOf(
             ".time",
@@ -21,8 +21,8 @@ class BaleExtractionStrategy : PlatformExtractionStrategy {
         messageMetaSelector = ".time",
         backgroundColorVariable = "--color-neutrals-n-00",
         buttonInjectionConfig = ButtonInjectionConfig(
-            targetSelector = ".KTwPFW .AiYtbO",
-            insertPosition = InsertPosition.APPEND,
+            targetSelector = ".IheVs2.KgorAF.QMmcaY",
+            insertPosition = InsertPosition.AFTER,
         ),
         beforeSendPublicKeySelector = ".tf8V56",
         userInfoSelector = UserInfoSelector(

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import ir.sysfail.chatguard.R
 import ir.sysfail.chatguard.core.messanger.models.MessengerPlatform
 import ir.sysfail.chatguard.core.permission.implementation.AccessibilityPermissionItem
+import ir.sysfail.chatguard.core.permission.implementation.NotificationsPermissionItem
 import ir.sysfail.chatguard.core.permission.implementation.OverlayPermissionItem
 import ir.sysfail.chatguard.core.permission.implementation.PermissionState
 import ir.sysfail.chatguard.core.permission.implementation.rememberPermissionState
@@ -71,6 +72,7 @@ val messengerItems = listOf(
 
 val accessibilityPermissionItem = AccessibilityPermissionItem()
 val overlayPermissionItem = OverlayPermissionItem()
+val notificationsPermissionItem = NotificationsPermissionItem()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,7 +80,13 @@ fun HomeScreen(
     onGoToWebFrame: (MessengerPlatform) -> Unit
 ) {
     val permissionsState = rememberPermissionState(
-        permissions = remember { listOf(accessibilityPermissionItem, overlayPermissionItem) }
+        permissions = remember {
+            listOf(
+                accessibilityPermissionItem,
+                overlayPermissionItem,
+                notificationsPermissionItem
+            )
+        }
     )
     var isAccessibilityItemExpanded by rememberSaveable { mutableStateOf(true) }
 
@@ -152,11 +160,19 @@ fun AccessibilityOptionMenu(permissionsState: PermissionState) {
     Column(
         modifier = Modifier
     ) {
+        val isNotificationsGranted =
+            permissionsState.permissionsGranted[notificationsPermissionItem.name] == true
         val isOverlayGranted =
             permissionsState.permissionsGranted[overlayPermissionItem.name] == true
         val isAccessibilityGranted =
             permissionsState.permissionsGranted[accessibilityPermissionItem.name] == true
 
+        DisplayPermissionItem(
+            name = stringResource(R.string.notification_permission),
+            description = stringResource(R.string.notification_permission_description),
+            isPermissionGranted = isNotificationsGranted,
+            onRequestPermission = { permissionsState.requestAccess(notificationsPermissionItem.name) }
+        )
         DisplayPermissionItem(
             name = stringResource(R.string.overlay_permission),
             description = stringResource(R.string.overlay_permission_description),
@@ -167,7 +183,7 @@ fun AccessibilityOptionMenu(permissionsState: PermissionState) {
             name = stringResource(R.string.accessibility_permission),
             description = stringResource(R.string.accessibility_permission_description),
             isPermissionGranted = isAccessibilityGranted,
-            requestPermissionEnabled = isOverlayGranted,
+            requestPermissionEnabled = isOverlayGranted && isNotificationsGranted,
             onRequestPermission = { permissionsState.requestAccess(accessibilityPermissionItem.name) }
         )
     }

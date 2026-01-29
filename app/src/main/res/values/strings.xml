@@ -17,6 +17,8 @@
     <string name="use_application" translatable="false">استفاده از اپلیکیشن‌ها</string>
     <string name="use_application_description" translatable="false">این مجوز به برنامه اجازه می‌دهد با اپلیکیشن‌های پیام‌رسان انتخاب‌شده تعامل داشته باشد.</string>
     <string name="required_permission" translatable="false">دسترسی ضروری</string>
+    <string name="notification_permission" translatable="false">ارسال اعلان‌ها</string>
+    <string name="notification_permission_description" translatable="false">این دسترسی برای ارسال اعلان‌ها و فعال ماندن برنامه در پس‌زمینه استفاده می‌شود.</string>
     <string name="overlay_permission" translatable="false">نمایش روی اپلیکیشن‌های دیگر</string>
     <string name="overlay_permission_description" translatable="false">این دسترسی برای ایجاد شورتکات به‌منظور نمایش و ارسال پیام در سایر اپلیکیشن‌ها استفاده می‌شود.</string>
     <string name="accessibility_permission" translatable="false">دسترسی پذیری</string>

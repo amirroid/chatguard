@@ -645,40 +645,47 @@ class DefaultWebContentExtractor(
         val messageIdAttribute = config.messageIdData
 
         return """
-            var messageId = '$messageId';
-            var messageIdAttr = ${JSONObject.quote(messageIdAttribute)};
-            var newText = ${JSONObject.quote(newText)};
-            
-            var messageParent = document.querySelector(
-                '${config.messageParentSelector}[' + messageIdAttr + '="' + messageId + '"]'
-            );
-            
-            if (!messageParent) {
-                console.error('Message not found with ID:', messageId);
-                return false;
-            }
-            
-            var messageElement = messageParent.querySelector('${config.messageSelector}');
-            
-            if (!messageElement) {
-                console.error('Message text element not found');
-                return false;
-            }
-            
-            if ('value' in messageElement) {
-                messageElement.value = newText;
-            } else if ('innerText' in messageElement) {
-                messageElement.innerText = newText;
-            } else {
-                messageElement.textContent = newText;
-            }
-            
-            messageElement.dispatchEvent(new Event('input', { bubbles: true }));
-            messageElement.dispatchEvent(new Event('change', { bubbles: true }));
-            
-            return true;
+        var messageId = '$messageId';
+        var messageIdAttr = ${JSONObject.quote(messageIdAttribute)};
+        var newText = ${JSONObject.quote(newText)};
+        
+        var messageParent = document.querySelector(
+            '${config.messageParentSelector}[' + messageIdAttr + '="' + messageId + '"]'
+        );
+        
+        if (!messageParent) {
+            console.error('Message not found with ID:', messageId);
+            return false;
+        }
+        
+        var allMessageElements = messageParent.querySelectorAll('${config.messageSelector}');
+        
+        if (allMessageElements.length === 0) {
+            console.error('No message text elements found');
+            return false;
+        }
+        
+        for (var i = 1; i < allMessageElements.length; i++) {
+            allMessageElements[i].remove();
+        }
+        
+        var firstMessage = allMessageElements[0];
+        
+        if ('value' in firstMessage) {
+            firstMessage.value = newText;
+        } else if ('innerText' in firstMessage) {
+            firstMessage.innerText = newText;
+        } else {
+            firstMessage.textContent = newText;
+        }
+        
+        firstMessage.dispatchEvent(new Event('input', { bubbles: true }));
+        firstMessage.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        return true;
     """.trimIndent()
     }
+
 
     private fun buildInjectButtonScript(
         messageId: String,
@@ -697,70 +704,72 @@ class DefaultWebContentExtractor(
                     "border:none;" +
                     "border-radius:6px;" +
                     "cursor:pointer;" +
-                    "min-height:28px;"
+                    "min-height:28px;" +
+                    "margin-left:auto;" +
+                    "display:block;"
 
 
         return """
-            var messageId = '$messageId';
-            var messageIdAttr = ${JSONObject.quote(messageIdAttribute)};
-            var injectionTarget = ${JSONObject.quote(injectionConfig.targetSelector)};
-            var insertPosition = ${JSONObject.quote(injectionConfig.insertPosition.name)};
-            var buttonId = ${JSONObject.quote(button.id)};
-            
-            var messageParent = document.querySelector('${config.messageParentSelector}[' + messageIdAttr + '="' + messageId + '"]');
-            
-            if (!messageParent) {
-                console.error('Message not found:', messageId);
-                return false;
-            }
-            
-            var targetElement = messageParent.querySelector(injectionTarget);
-            if (!targetElement) {
-                return false;
-            }
-            
-            var existingButton = messageParent.querySelector('[data-chatguard-button-id="' + buttonId + '"]');
-            if (existingButton) {
-                return true;
-            }
-            
-            var textContent = messageParent.querySelector('${config.messageSelector}');
-            
-            var button = document.createElement('button');
-            button.className = '$BUTTON_CLASS';
-            button.textContent = ${JSONObject.quote(button.text)};
-            button.setAttribute('data-chatguard-button-id', buttonId);
-            button.setAttribute('data-chatguard-button-type', ${JSONObject.quote(button.buttonType.name)});
-            button.disabled = ${!button.enabled};
-            button.setAttribute('style', ${JSONObject.quote(defaultStyle)});
-    
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                $BUTTON_BRIDGE_NAME.onButtonClick(
-                    ${JSONObject.quote(button.buttonType.name)},
-                    messageId
-                );
-            });
-            
-            switch(insertPosition) {
-                case 'BEFORE':
-                    targetElement.parentNode.insertBefore(button, targetElement);
-                    break;
-                case 'AFTER':
-                    targetElement.parentNode.insertBefore(button, targetElement.nextSibling);
-                    break;
-                case 'PREPEND':
-                    targetElement.insertBefore(button, targetElement.firstChild);
-                    break;
-                case 'APPEND':
-                default:
-                    targetElement.appendChild(button);
-                    break;
-            }
-            
+        var messageId = '$messageId';
+        var messageIdAttr = ${JSONObject.quote(messageIdAttribute)};
+        var injectionTarget = ${JSONObject.quote(injectionConfig.targetSelector)};
+        var insertPosition = ${JSONObject.quote(injectionConfig.insertPosition.name)};
+        var buttonId = ${JSONObject.quote(button.id)};
+        
+        var messageParent = document.querySelector('${config.messageParentSelector}[' + messageIdAttr + '="' + messageId + '"]');
+        
+        if (!messageParent) {
+            console.error('Message not found:', messageId);
+            return false;
+        }
+        
+        var targetElement = messageParent.querySelector(injectionTarget);
+        if (!targetElement) {
+            return false;
+        }
+        
+        var existingButton = messageParent.querySelector('[data-chatguard-button-id="' + buttonId + '"]');
+        if (existingButton) {
             return true;
+        }
+        
+        var textContent = messageParent.querySelector('${config.messageSelector}');
+        
+        var button = document.createElement('button');
+        button.className = '$BUTTON_CLASS';
+        button.textContent = ${JSONObject.quote(button.text)};
+        button.setAttribute('data-chatguard-button-id', buttonId);
+        button.setAttribute('data-chatguard-button-type', ${JSONObject.quote(button.buttonType.name)});
+        button.disabled = ${!button.enabled};
+        button.setAttribute('style', ${JSONObject.quote(defaultStyle)});
+
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            $BUTTON_BRIDGE_NAME.onButtonClick(
+                ${JSONObject.quote(button.buttonType.name)},
+                messageId
+            );
+        });
+        
+        switch(insertPosition) {
+            case 'BEFORE':
+                targetElement.parentNode.insertBefore(button, targetElement);
+                break;
+            case 'AFTER':
+                targetElement.parentNode.insertBefore(button, targetElement.nextSibling);
+                break;
+            case 'PREPEND':
+                targetElement.insertBefore(button, targetElement.firstChild);
+                break;
+            case 'APPEND':
+            default:
+                targetElement.appendChild(button);
+                break;
+        }
+        
+        return true;
     """.trimIndent()
     }
 
@@ -1029,9 +1038,9 @@ class DefaultWebContentExtractor(
     ): String {
         val detailedAttrs = if (includeDetailedAttrs) {
             """
-                className: parent.className || '',
-                id: parent.id || '',
-                dir: parent.getAttribute('dir') || '',"""
+            className: parent.className || '',
+            id: parent.id || '',
+            dir: parent.getAttribute('dir') || '',"""
         } else {
             ""
         }
@@ -1062,28 +1071,40 @@ class DefaultWebContentExtractor(
             var parent = el.closest('${config.messageParentSelector}');
             if (!parent) return null;
         
-            var clone = parent.cloneNode(true);
-        
-            ignoreSelectors.forEach(function(sel) {
-                clone.querySelectorAll(sel).forEach(function(m) { m.remove(); });
+            var messageElements = parent.querySelectorAll('${config.messageSelector}');
+            var textParts = [];
+            var htmlParts = [];
+            
+            messageElements.forEach(function(msgEl) {
+                var clone = msgEl.cloneNode(true);
+            
+                ignoreSelectors.forEach(function(sel) {
+                    clone.querySelectorAll(sel).forEach(function(m) { m.remove(); });
+                });
+            
+                clone.querySelectorAll('div, p, br, li').forEach(function(n) {
+                    n.insertAdjacentText('afterend', '\n');
+                });
+            
+                var rawText = clone.textContent || '';
+                var text = rawText
+                    .replace(/\n+/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            
+                var html = clone.innerHTML || '';
+                
+                if (text) textParts.push(text);
+                if (html) htmlParts.push(html);
             });
+            
+            var finalText = textParts.join(' ');
+            var finalHtml = htmlParts.join(' ');
         
-            clone.querySelectorAll('div, p, br, li').forEach(function(n) {
-                n.insertAdjacentText('afterend', '\n');
-            });
-        
-            var rawText = clone.textContent || '';
-            var text = rawText
-                .replace(/\n+/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
-        
-            var html = clone.innerHTML || '';
-        
-            if (text || html) {
+            if (finalText || finalHtml) {
                 var item = {
-                    text: text,
-                    html: html,$detailedAttrs
+                    text: finalText,
+                    html: finalHtml,$detailedAttrs
                 };
         
                 attributes.forEach(function(attr) {
@@ -1095,14 +1116,21 @@ class DefaultWebContentExtractor(
             return null;
         }
         
+        var processedParents = new Set();
+        
         elements.forEach(function(el) {
-            if ($visibilityCheck) {
-                var item = extractContent(el);
-                if (item) contents.push(item);
+            var parent = el.closest('${config.messageParentSelector}');
+            if (parent && !processedParents.has(parent)) {
+                processedParents.add(parent);
+                
+                if ($visibilityCheck) {
+                    var item = extractContent(el);
+                    if (item) contents.push(item);
+                }
             }
         });
         
         $BRIDGE_NAME.onContentExtracted('$callbackId', JSON.stringify(contents));
-        """.trimIndent()
+    """.trimIndent()
     }
 }

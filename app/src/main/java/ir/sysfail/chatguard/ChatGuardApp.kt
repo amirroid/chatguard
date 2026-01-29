@@ -1,6 +1,9 @@
 package ir.sysfail.chatguard
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import androidx.core.app.NotificationManagerCompat
 import ir.sysfail.chatguard.core.initializer.abstraction.StartupInitializer
 import ir.sysfail.chatguard.di.applicationModule
 import ir.sysfail.chatguard.di.bridgeModule
@@ -14,6 +17,7 @@ import ir.sysfail.chatguard.di.steganographyModule
 import ir.sysfail.chatguard.di.useCaseModule
 import ir.sysfail.chatguard.di.viewModelModule
 import ir.sysfail.chatguard.di.webExtractionModule
+import ir.sysfail.chatguard.utils.Constants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,6 +33,11 @@ class ChatGuardApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        NotificationManagerCompat.from(this)
+            .createNotificationChannel(
+                NotificationChannel(Constants.CHANNEL_ID, "برای استفاده از بکگراند", NotificationManager.IMPORTANCE_DEFAULT)
+            )
 
         startKoin {
             androidContext(this@ChatGuardApp)
