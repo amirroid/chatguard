@@ -8,7 +8,7 @@ import ir.sysfail.chatguard.core.event.EventBus
 import ir.sysfail.chatguard.core.messanger.abstraction.MessengerNodeReader
 import ir.sysfail.chatguard.domain.events.SendMessageEvent
 import ir.sysfail.chatguard.domain.models.message.ExtractedMessengerChat
-import ir.sysfail.chatguard.domain.usecase.crypto.CheckPublicKeyExistsUseCase
+import ir.sysfail.chatguard.domain.usecase.key.CheckPublicKeyExistsUseCase
 import ir.sysfail.chatguard.ui_models.chat.ExtractedMessengerChatUiModel
 import ir.sysfail.chatguard.ui_models.chat.WindowType
 import kotlinx.coroutines.CoroutineScope

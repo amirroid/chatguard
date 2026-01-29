@@ -15,6 +15,7 @@
     <string name="bale" translatable="false">بله</string>
     <string name="click_to_enter" translatable="false">برای ورود کلیک کنید</string>
     <string name="use_application" translatable="false">استفاده از اپلیکیشن‌ها</string>
+    <string name="settings" translatable="false">تنظیمات</string>
     <string name="use_application_description" translatable="false">این مجوز به برنامه اجازه می‌دهد با اپلیکیشن‌های پیام‌رسان انتخاب‌شده تعامل داشته باشد.</string>
     <string name="required_permission" translatable="false">دسترسی ضروری</string>
     <string name="notification_permission" translatable="false">ارسال اعلان‌ها</string>
@@ -27,4 +28,24 @@
     <string name="permission_accepted" translatable="false">دسترسی اعطا شده</string>
     <string name="an_error_occurred_in_loading" translatable="false">مشکلی در بارگذاری صفحه پیش امده است...</string>
     <string name="retry" translatable="false">تلاش مجدد</string>
+    <string name="app_intro" translatable="false">
+        این برنامه با هدف ارتقای امنیت در استفاده از پیام‌رسان‌های داخلی طراحی و توسعه داده شده است.
+        برای شروع، لطفاً مشخص کنید آیا مایل هستید از کلیدهای رمزنگاری قبلی خود استفاده کرده و آن‌ها را وارد نمایید،
+        یا ترجیح می‌دهید یک کلید رمزنگاری جدید ایجاد کنید.
+    </string>
+    <string name="welcome">به app_name خوش آمدید</string>
+    <string name="import_existing_keys" translatable="false">استفاده از کلیدهای رمزنگاری موجود</string>
+    <string name="export_keys" translatable="false">خروجی گرفتن از کلیدهای رمزنگاری</string>
+    <string name="exit_current_keys" translatable="false">عدم استفاده از کلیدهای فعلی</string>
+    <string name="create_new_keys" translatable="false">ایجاد کلید رمزنگاری جدید</string>
+    <string name="start" translatable="false">شروع</string>
+    <string name="selecting_file" translatable="false">در حال انتخاب فایل</string>
+    <string name="select_file" translatable="false">لطفاً یک فایل را انتخاب کنید</string>
+    <string name="unverified_selected_file" translatable="false">فایل انتخاب‌شده معتبر نیست</string>
+    <string name="verified_file" translatable="false">فایل با موفقیت تأیید شد</string>
+    <string name="exit_keys_warning" translatable="false">در صورت خروج، امکان بازگرداندن کلیدهای فعلی وجود ندارد، مگر اینکه قبلاً آن‌ها را در محل دیگری ذخیره کرده باشید. آیا اطمینان دارید که می‌خواهید خارج شوید؟</string>
+    <string name="confirm">تأیید</string>
+    <string name="cancel">انصراف</string>
+    <string name="warning" translatable="false">هشدار</string>
+    <string name="save_successfully" translatable="false">فایل با موفقیت ذخیره شد</string>
 </resources>

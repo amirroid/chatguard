@@ -23,4 +23,7 @@ interface KeyManager {
 
     // Calculate fingerprint for manual verification
     suspend fun calculateFingerprint(publicKey: PublicKey): Result<String>
+
+    // Validate key pair bytes by attempting to reconstruct the keys
+    fun validateKeyPair(privateKeyBytes: ByteArray, publicKeyBytes: ByteArray): Boolean
 }

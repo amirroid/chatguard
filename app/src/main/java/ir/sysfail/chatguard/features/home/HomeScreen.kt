@@ -1,10 +1,15 @@
 package ir.sysfail.chatguard.features.home
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,13 +18,14 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
@@ -29,9 +35,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import ir.sysfail.chatguard.R
 import ir.sysfail.chatguard.core.messanger.models.MessengerPlatform
@@ -42,7 +48,8 @@ import ir.sysfail.chatguard.core.permission.implementation.PermissionState
 import ir.sysfail.chatguard.core.permission.implementation.rememberPermissionState
 import ir.sysfail.chatguard.ui.components.ExpandIconButton
 import ir.sysfail.chatguard.ui.components.TransparentListItem
-import ir.sysfail.chatguard.ui.theme.ChatGuardTheme
+import ir.sysfail.chatguard.utils.Constants
+import org.koin.compose.viewmodel.koinViewModel
 
 @Immutable
 data class MessengerItem(
@@ -77,7 +84,9 @@ val notificationsPermissionItem = NotificationsPermissionItem()
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onGoToWebFrame: (MessengerPlatform) -> Unit
+    onGoToWebFrame: (MessengerPlatform) -> Unit,
+    onGoToIntro: () -> Unit,
+    viewModel: HomeViewModel = koinViewModel()
 ) {
     val permissionsState = rememberPermissionState(
         permissions = remember {
@@ -88,12 +97,29 @@ fun HomeScreen(
             )
         }
     )
+    val context = LocalContext.current
+
+    val createFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        uri?.let { requiredUri ->
+            viewModel.saveKeys(requiredUri, onSuccess = {
+                Toast.makeText(context, R.string.save_successfully, Toast.LENGTH_SHORT).show()
+            })
+        }
+    }
+
+
     var isAccessibilityItemExpanded by rememberSaveable { mutableStateOf(true) }
+    var isSettingsItemExpanded by rememberSaveable { mutableStateOf(false) }
+    var isExitKeysWarningDialog by rememberSaveable { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = WindowInsets.navigationBars.asPaddingValues()
+        contentPadding = PaddingValues(
+            bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        )
     ) {
         item("header") {
             CenterAlignedTopAppBar(
@@ -152,8 +178,93 @@ fun HomeScreen(
                 }
             }
         }
+        item("settings") {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                TransparentListItem(
+                    headlineContent = {
+                        Text(stringResource(R.string.settings), fontWeight = FontWeight.Bold)
+                    },
+                    trailingContent = {
+                        ExpandIconButton(
+                            isSettingsItemExpanded,
+                            onClick = { isSettingsItemExpanded = !isSettingsItemExpanded }
+                        )
+                    }
+                )
+                AnimatedVisibility(isSettingsItemExpanded) {
+                    Column {
+                        TransparentListItem(
+                            headlineContent = {
+                                Text(stringResource(R.string.export_keys))
+                            },
+                            modifier = Modifier.clickable {
+                                createFileLauncher.launch("identity_keys_backup.${Constants.KEYS_EXTENSION}")
+                            }
+                        )
+                        TransparentListItem(
+                            headlineContent = {
+                                Text(stringResource(R.string.exit_current_keys))
+                            },
+                            modifier = Modifier.clickable {
+                                isExitKeysWarningDialog = true
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (isExitKeysWarningDialog) {
+        ExitKeysWarningDialog(
+            onConfirmExit = {
+                viewModel.clearCurrentKeys {
+                    onGoToIntro.invoke()
+                    isExitKeysWarningDialog = false
+                }
+            },
+            onDismiss = {
+                isExitKeysWarningDialog = false
+            }
+        )
+
     }
 }
+
+@Composable
+fun ExitKeysWarningDialog(
+    onConfirmExit: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = stringResource(R.string.warning))
+        },
+        text = {
+            Text(text = stringResource(R.string.exit_keys_warning))
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirmExit
+            ) {
+                Text(text = stringResource(R.string.confirm))
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismiss
+            ) {
+                Text(text = stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
 
 @Composable
 fun AccessibilityOptionMenu(permissionsState: PermissionState) {
@@ -231,17 +342,4 @@ fun DisplayPermissionItem(
             }
         }
     )
-}
-
-
-@Preview
-@Composable
-fun HomeScreenPreview() {
-    ChatGuardTheme {
-        Scaffold {
-            HomeScreen(
-                onGoToWebFrame = {}
-            )
-        }
-    }
 }

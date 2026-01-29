@@ -12,6 +12,7 @@ import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.spec.ECGenParameterSpec
+import java.security.spec.PKCS8EncodedKeySpec
 import java.security.spec.X509EncodedKeySpec
 
 class EcdhKeyManager : KeyManager {
@@ -80,4 +81,18 @@ class EcdhKeyManager : KeyManager {
                 }
             }
         }
+
+    override fun validateKeyPair(privateKeyBytes: ByteArray, publicKeyBytes: ByteArray): Boolean {
+        return runCatching {
+            val keyFactory = KeyFactory.getInstance(ALGORITHM)
+
+            val privateKeySpec = PKCS8EncodedKeySpec(privateKeyBytes)
+            keyFactory.generatePrivate(privateKeySpec)
+
+            val publicKeySpec = X509EncodedKeySpec(publicKeyBytes)
+            keyFactory.generatePublic(publicKeySpec)
+
+            true
+        }.getOrDefault(false)
+    }
 }

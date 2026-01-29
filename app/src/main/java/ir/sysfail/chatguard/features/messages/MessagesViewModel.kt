@@ -7,7 +7,7 @@ import ir.sysfail.chatguard.core.event.EventBus
 import ir.sysfail.chatguard.domain.events.SendMessageEvent
 import ir.sysfail.chatguard.domain.models.crypto.CryptoKey
 import ir.sysfail.chatguard.domain.models.message.ExtractedMessengerChat
-import ir.sysfail.chatguard.domain.usecase.crypto.GetPublicKeyUseCase
+import ir.sysfail.chatguard.domain.usecase.key.GetPublicKeyUseCase
 import ir.sysfail.chatguard.domain.usecase.key.AddUserPublicKeyUseCase
 import ir.sysfail.chatguard.domain.usecase.steganography_crypto.ExtractPoeticPublicKeyUseCase
 import ir.sysfail.chatguard.domain.usecase.steganography_crypto.GetPoeticSignedPublicKeyUseCase

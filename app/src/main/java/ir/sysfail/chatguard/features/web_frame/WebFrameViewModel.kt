@@ -12,7 +12,7 @@ import ir.sysfail.chatguard.core.web_content_extractor.models.ExtractedElementMe
 import ir.sysfail.chatguard.core.web_content_extractor.models.ExtractedUserInfo
 import ir.sysfail.chatguard.core.web_content_extractor.models.InfoMessageType
 import ir.sysfail.chatguard.domain.models.crypto.CryptoKey
-import ir.sysfail.chatguard.domain.usecase.crypto.GetPublicKeyUseCase
+import ir.sysfail.chatguard.domain.usecase.key.GetPublicKeyUseCase
 import ir.sysfail.chatguard.domain.usecase.key.AddUserPublicKeyUseCase
 import ir.sysfail.chatguard.domain.usecase.steganography_crypto.ExtractPoeticPublicKeyUseCase
 import ir.sysfail.chatguard.domain.usecase.steganography_crypto.GetPoeticSignedPublicKeyUseCase

@@ -1,4 +1,4 @@
-package ir.sysfail.chatguard.domain.usecase.crypto
+package ir.sysfail.chatguard.domain.usecase.key
 
 import ir.sysfail.chatguard.domain.repository.KeyRepository
 
