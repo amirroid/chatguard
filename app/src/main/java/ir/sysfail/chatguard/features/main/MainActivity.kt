@@ -13,6 +13,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import ir.sysfail.chatguard.features.guide.GuideScreen
 import ir.sysfail.chatguard.features.home.HomeScreen
 import ir.sysfail.chatguard.features.intro.IntroScreen
 import ir.sysfail.chatguard.features.web_frame.WebFrameScreen
@@ -64,6 +65,9 @@ class MainActivity : ComponentActivity() {
                                             inclusive = true
                                         }
                                     }
+                                },
+                                onGoToGuides = {
+                                    navController.navigate(Screens.Guides)
                                 }
                             )
                         }
@@ -72,6 +76,11 @@ class MainActivity : ComponentActivity() {
 
                             WebFrameScreen(
                                 platform = info.platform,
+                                onBack = navController::navigateUp
+                            )
+                        }
+                        composable<Screens.Guides> {
+                            GuideScreen(
                                 onBack = navController::navigateUp
                             )
                         }

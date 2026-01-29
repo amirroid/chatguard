@@ -6,8 +6,12 @@ import kotlinx.serialization.Serializable
 sealed interface Screens {
     @Serializable
     data object Intro : Screens
+
     @Serializable
     data object Home : Screens
+
+    @Serializable
+    data object Guides : Screens
 
     @Serializable
     data class Web(

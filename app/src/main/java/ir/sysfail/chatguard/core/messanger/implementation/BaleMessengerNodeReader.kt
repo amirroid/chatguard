@@ -111,7 +111,7 @@ class BaleMessengerNodeReader : MessengerNodeReader {
     private fun extractMessageText(content: String): String {
         val textAfterPrefix = removeMessagePrefix(content)
 
-        val patterns = listOf(" در ", "در")
+        val patterns = listOf("at", " در ", "در")
         for (pattern in patterns) {
             val index = textAfterPrefix.lastIndexOf(pattern)
             if (index != -1) {
@@ -142,7 +142,7 @@ class BaleMessengerNodeReader : MessengerNodeReader {
 
         private const val WITH_TEXT_MARKER = "بامتن"
 
-        private val SENT_MARKERS = setOf("ارسال شده", "دیده شده")
+        private val SENT_MARKERS = setOf("ارسال شده", "دیده شده", "seen")
         private val RECEIVED_MARKERS = setOf("دریافت شده")
     }
 }
