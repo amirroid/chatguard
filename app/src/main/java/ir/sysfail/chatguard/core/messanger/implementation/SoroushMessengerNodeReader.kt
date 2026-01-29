@@ -109,7 +109,7 @@ class SoroushMessengerNodeReader : MessengerNodeReader {
             if (child1.className == EditText::class.java.name) {
                 return child1
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return null
         }
 
@@ -222,24 +222,24 @@ class SoroushMessengerNodeReader : MessengerNodeReader {
         )
 
         private val SENT_MARKERS = setOf(
+            "Seen",
+            "Not seen",
             "ارسال شد",
-            "sent"
         )
 
         private val RECEIVED_MARKERS = setOf(
+            "Received",
             "دریافت شد",
-            "received"
         )
 
         private val STATUS_MARKERS = setOf(
+            "Not seen",
+            "Received",
+            "Seen",
             "ارسال شد",
             "دریافت شد",
             "دیده شد",
             "دیده نشده",
-            "sent",
-            "received",
-            "seen",
-            "not seen"
         )
     }
 }

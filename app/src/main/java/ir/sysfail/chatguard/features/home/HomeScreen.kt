@@ -1,5 +1,6 @@
 package ir.sysfail.chatguard.features.home
 
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -96,13 +97,17 @@ fun HomeScreen(
 ) {
     val permissionsState = rememberPermissionState(
         permissions = remember {
-            listOf(
-                accessibilityPermissionItem,
-                overlayPermissionItem,
-                notificationsPermissionItem
-            )
+            buildList {
+                add(accessibilityPermissionItem)
+                add(overlayPermissionItem)
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    add(notificationsPermissionItem)
+                }
+            }
         }
     )
+
     val context = LocalContext.current
 
     val createFileLauncher = rememberLauncherForActivityResult(
@@ -293,18 +298,20 @@ fun AccessibilityOptionMenu(permissionsState: PermissionState) {
         modifier = Modifier
     ) {
         val isNotificationsGranted =
-            permissionsState.permissionsGranted[notificationsPermissionItem.name] == true
+            permissionsState.permissionsGranted[notificationsPermissionItem.name] ?: true
         val isOverlayGranted =
             permissionsState.permissionsGranted[overlayPermissionItem.name] == true
         val isAccessibilityGranted =
             permissionsState.permissionsGranted[accessibilityPermissionItem.name] == true
 
-        DisplayPermissionItem(
-            name = stringResource(R.string.notification_permission),
-            description = stringResource(R.string.notification_permission_description),
-            isPermissionGranted = isNotificationsGranted,
-            onRequestPermission = { permissionsState.requestAccess(notificationsPermissionItem.name) }
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            DisplayPermissionItem(
+                name = stringResource(R.string.notification_permission),
+                description = stringResource(R.string.notification_permission_description),
+                isPermissionGranted = isNotificationsGranted,
+                onRequestPermission = { permissionsState.requestAccess(notificationsPermissionItem.name) }
+            )
+        }
         DisplayPermissionItem(
             name = stringResource(R.string.overlay_permission),
             description = stringResource(R.string.overlay_permission_description),

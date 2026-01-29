@@ -142,7 +142,7 @@ class BaleMessengerNodeReader : MessengerNodeReader {
 
         private const val WITH_TEXT_MARKER = "بامتن"
 
-        private val SENT_MARKERS = setOf("ارسال شده", "دیده شده", "seen")
-        private val RECEIVED_MARKERS = setOf("دریافت شده")
+        private val SENT_MARKERS = setOf("seen", "ارسال شده", "دیده شده")
+        private val RECEIVED_MARKERS = setOf("received", "دریافت شده")
     }
 }
