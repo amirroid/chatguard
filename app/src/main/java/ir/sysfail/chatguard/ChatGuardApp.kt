@@ -3,7 +3,6 @@ package ir.sysfail.chatguard
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
 import ir.sysfail.chatguard.core.exception.GlobalExceptionHandler
 import ir.sysfail.chatguard.core.initializer.abstraction.StartupInitializer

@@ -883,45 +883,54 @@ class DefaultWebContentExtractor(
             return true;
     """.trimIndent()
     }
+
     private fun buildObserveSendActionScript(
         config: SelectorConfig,
         callbackId: String
     ) = """
         (function() {
             var input = document.querySelector('${config.inputFieldSelector}');
-            if (!input) return false;
-            
-            function attachListener(btn) {
-                if (btn.__chatguardSendObserverAttached) return;
-                btn.__chatguardSendObserverAttached = true;
-                btn.addEventListener('click', function(event) {
-                    if (btn.__chatguardIsSending) {
-                        btn.__chatguardIsSending = false;
-                        return;
-                    }
-                    event.stopImmediatePropagation();
-                    event.preventDefault();
-                    var messageText = input.value || input.innerText || input.textContent || '';
-                    $BRIDGE_NAME.onContentExtracted(
-                        '$callbackId',
-                        messageText
-                    );
-                }, true);
+            if (!input) {
+                console.error('[ChatGuard] Input field not found');
+                return false;
             }
             
-            var existingBtn = document.querySelector('${config.sendButtonSelector}');
-            if (existingBtn) attachListener(existingBtn);
+            var sendBtn = document.querySelector('${config.sendButtonSelector}');
+            if (!sendBtn) {
+                console.error('[ChatGuard] Send button not found');
+                return false;
+            }
             
-            var observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'childList') {
-                        var btn = document.querySelector('${config.sendButtonSelector}');
-                        if (btn) attachListener(btn);
-                    }
-                });
-            });
-            observer.observe(document.body, { childList: true, subtree: true });
+            if (sendBtn.__chatguardSendObserverAttached) {
+                console.log('[ChatGuard] Observer already attached');
+                return true;
+            }
             
+            sendBtn.__chatguardSendObserverAttached = true;
+            
+            sendBtn.__chatguardSendHandler = function(event) {
+                if (sendBtn.__chatguardIsSending) {
+                    console.log('[ChatGuard] Ignoring programmatic send');
+                    sendBtn.__chatguardIsSending = false;
+                    return;
+                }
+                
+                event.stopImmediatePropagation();
+                event.preventDefault();
+                
+                var messageText = input.value || input.innerText || input.textContent || '';
+                
+                if (messageText && messageText.trim()) {
+                    console.log('[ChatGuard] Sending message:', messageText.substring(0, 50));
+                    $BRIDGE_NAME.onContentExtracted('$callbackId', messageText.trim());
+                } else {
+                    console.warn('[ChatGuard] Empty message, ignoring');
+                }
+            };
+            
+            sendBtn.addEventListener('click', sendBtn.__chatguardSendHandler, true);
+            
+            console.log('[ChatGuard] Send observer attached successfully');
             return true;
         })();
     """.trimIndent()
@@ -930,13 +939,21 @@ class DefaultWebContentExtractor(
     private fun buildRemoveSendActionObserverScript(config: SelectorConfig) = """
         (function() {
             var sendBtn = document.querySelector('${config.sendButtonSelector}');
-            if (!sendBtn) return;
+            if (!sendBtn) {
+                console.warn('[ChatGuard] Send button not found for removal');
+                return false;
+            }
     
             if (sendBtn.__chatguardSendHandler) {
                 sendBtn.removeEventListener('click', sendBtn.__chatguardSendHandler, true);
                 sendBtn.__chatguardSendHandler = null;
                 sendBtn.__chatguardSendObserverAttached = false;
+                console.log('[ChatGuard] Send observer removed');
+                return true;
             }
+            
+            console.warn('[ChatGuard] No handler to remove');
+            return false;
         })();
     """.trimIndent()
 

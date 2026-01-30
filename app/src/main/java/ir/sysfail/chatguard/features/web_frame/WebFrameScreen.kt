@@ -78,6 +78,7 @@ fun WebFrameScreen(
                 webContentExtractor.observeBackgroundColor(viewModel::updateBackgroundColor)
 
                 scope.launch {
+                    webContentExtractor.removeSendActionObserver()
                     viewModel.onPageLoaded()
 
                     if (!webContentExtractor.isChatPage()) {
