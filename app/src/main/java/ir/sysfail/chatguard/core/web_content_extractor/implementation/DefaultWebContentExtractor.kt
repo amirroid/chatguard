@@ -327,15 +327,16 @@ class DefaultWebContentExtractor(
         }
     }
 
+    override suspend fun clearAllFlags() {
+        executeCustomScript(buildClearAllFlagsScript())
+    }
 
     override fun cleanup() {
-        observers.keys.forEach { callbackId ->
-            webView?.post {
-                webView?.evaluateJavascript(
-                    "if (window._chatguard_observers && window._chatguard_observers['$callbackId']) { window._chatguard_observers['$callbackId'].disconnect(); delete window._chatguard_observers['$callbackId']; }",
-                    null
-                )
-            }
+        webView?.post {
+            webView?.evaluateJavascript(
+                buildClearAllFlagsScript(),
+                null
+            )
         }
 
         callbacks.clear()
@@ -492,6 +493,69 @@ class DefaultWebContentExtractor(
         return executeCustomScript(script).trim() == "true"
     }
 
+
+    private fun buildClearAllFlagsScript() = """
+        (function() {
+            if (window.__chatguardSendObserver) {
+                var obs = window.__chatguardSendObserver;
+                
+                var input = document.querySelector('${strategy.getSelectorConfig().inputFieldSelector}');
+                if (input && obs.inputHandler) {
+                    input.removeEventListener('keydown', obs.inputHandler, true);
+                }
+                
+                if (obs.mutationObserver) {
+                    obs.mutationObserver.disconnect();
+                }
+                
+                delete window.__chatguardSendObserver;
+            }
+            
+            if (window.__chatguardColorObserver) {
+                window.__chatguardColorObserver.disconnect();
+                delete window.__chatguardColorObserver;
+            }
+            
+            if (window._chatguard_observers) {
+                Object.keys(window._chatguard_observers).forEach(function(key) {
+                    var obs = window._chatguard_observers[key];
+                    if (obs && obs.disconnect) {
+                        obs.disconnect();
+                    }
+                });
+                delete window._chatguard_observers;
+            }
+            
+            var sendBtn = document.querySelector('${strategy.getSelectorConfig().sendButtonSelector}');
+            if (sendBtn) {
+                if (sendBtn.__chatguardSendHandler) {
+                    sendBtn.removeEventListener('click', sendBtn.__chatguardSendHandler, true);
+                    sendBtn.removeEventListener('mousedown', sendBtn.__chatguardSendHandler, true);
+                    delete sendBtn.__chatguardSendHandler;
+                }
+                delete sendBtn.__chatguardAttached;
+                delete sendBtn.__chatguardIsSending;
+            }
+            
+            var buttons = document.querySelectorAll('.$BUTTON_CLASS');
+            buttons.forEach(function(btn) {
+                if (btn.__chatguardClickHandler) {
+                    btn.removeEventListener('click', btn.__chatguardClickHandler, true);
+                    btn.removeEventListener('touchstart', btn.__chatguardClickHandler, true);
+                    btn.removeEventListener('mousedown', btn.__chatguardClickHandler, true);
+                }
+                btn.remove();
+            });
+            
+            var infoMessages = document.querySelectorAll('.chatguard-info-message');
+            infoMessages.forEach(function(msg) {
+                msg.remove();
+            });
+            
+            return true;
+        })();
+    """.trimIndent()
+
     override suspend fun getUserInfo(): ExtractedUserInfo? {
         return executeExtraction { config, _, callbackId ->
             executeAndProcessSingleObject(
@@ -552,7 +616,6 @@ class DefaultWebContentExtractor(
           });
     """.trimIndent()
 
-
     private fun buildInjectInfoMessageScript(
         message: InfoMessage,
         config: InfoMessageConfig
@@ -610,7 +673,6 @@ class DefaultWebContentExtractor(
     """.trimIndent()
     }
 
-
     private fun buildGetUserInfoScript(
         config: UserInfoSelector,
         callbackId: String
@@ -628,46 +690,87 @@ class DefaultWebContentExtractor(
         callbackId: String
     ): String {
         val targetSelector = config.beforeSendPublicKeySelector
-
         return """
-        (function() {
-            var target = document.querySelector('$targetSelector');
-            if (!target) return '';
-            
-            var existingButton = document.querySelector('[data-chatguard-public-key-input]');
-            if (existingButton) return '';
-            
-            var button = document.createElement('button');
-            button.setAttribute('data-chatguard-public-key-input', 'true');
-            button.className = '$BUTTON_CLASS';
-            button.style.cssText = 
-                'width: 40px;' +
-                'height: 40px;' +
-                'border-radius: 50%;' +
-                'background: #3b82f6;' +
-                'border: none;' +
-                'cursor: pointer;' +
-                'display: flex;' +
-                'align-items: center;' +
-                'justify-content: center;' +
-                'padding: 0;' +
-                'margin: 0 8px;';
-            
-            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M280-400q-33 0-56.5-23.5T200-480q0-33 23.5-56.5T280-560q33 0 56.5 23.5T360-480q0 33-23.5 56.5T280-400Zm0 160q-100 0-170-70T40-480q0-100 70-170t170-70q67 0 121.5 33t86.5 87h352l120 120-180 180-80-60-80 60-85-60h-47q-32 54-86.5 87T280-240Zm0-80q56 0 98.5-34t56.5-86h125l58 41 82-61 71 55 75-75-40-40H435q-14-52-56.5-86T280-640q-66 0-113 47t-47 113q0 66 47 113t113 47Z"/></svg>';
-            
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
+            (function() {
+                function waitForTarget(retries) {
+                    var target = document.querySelector('$targetSelector');
+                    
+                    if (!target && retries > 0) {
+                        setTimeout(function() {
+                            waitForTarget(retries - 1);
+                        }, 100);
+                        return;
+                    }
+                    
+                    if (!target) {
+                        return '';
+                    }
+                    
+                    var existingButton = document.querySelector('[data-chatguard-public-key-input]');
+                    if (existingButton) {
+                        return '';
+                    }
+                    
+                    createButton(target);
+                }
                 
-                $BRIDGE_NAME.onContentExtracted('$callbackId', '');
-            });
-            
-            target.parentNode.insertBefore(button, target.nextSibling);
-            
-            return '';
-        })();
-    """.trimIndent()
+                function createButton(target) {
+                    var button = document.createElement('button');
+                    button.setAttribute('data-chatguard-public-key-input', 'true');
+                    button.className = '$BUTTON_CLASS';
+                    
+                    button.style.cssText = 
+                        'width: 40px;' +
+                        'height: 40px;' +
+                        'border-radius: 50%;' +
+                        'background: #3b82f6;' +
+                        'border: none;' +
+                        'cursor: pointer;' +
+                        'display: flex;' +
+                        'align-items: center;' +
+                        'justify-content: center;' +
+                        'padding: 0;' +
+                        'margin: 0 8px;' +
+                        'position: relative;' +
+                        'z-index: 99999;' +
+                        'pointer-events: auto;' +
+                        'touch-action: manipulation;' +
+                        '-webkit-tap-highlight-color: transparent;';
+                    
+                    button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3" style="pointer-events: none;"><path d="M280-400q-33 0-56.5-23.5T200-480q0-33 23.5-56.5T280-560q33 0 56.5 23.5T360-480q0 33-23.5 56.5T280-400Zm0 160q-100 0-170-70T40-480q0-100 70-170t170-70q67 0 121.5 33t86.5 87h352l120 120-180 180-80-60-80 60-85-60h-47q-32 54-86.5 87T280-240Zm0-80q56 0 98.5-34t56.5-86h125l58 41 82-61 71 55 75-75-40-40H435q-14-52-56.5-86T280-640q-66 0-113 47t-47 113q0 66 47 113t113 47Z"/></svg>';
+                    
+                    var clickHandler = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        
+                        button.disabled = true;
+                        button.style.opacity = '0.6';
+                        
+                        $BRIDGE_NAME.onContentExtracted('$callbackId', 'clicked');
+                        
+                        setTimeout(function() {
+                            button.disabled = false;
+                            button.style.opacity = '1';
+                        }, 500);
+                        
+                        return false;
+                    };
+                    
+                    button.addEventListener('click', clickHandler, true);
+                    button.addEventListener('touchstart', clickHandler, true);
+                    button.addEventListener('mousedown', clickHandler, true);
+                    
+                    button.__chatguardClickHandler = clickHandler;
+                    
+                    target.parentNode.insertBefore(button, target.nextSibling);
+                    
+                    return 'success';
+                }
+                
+                waitForTarget(10);
+            })();
+        """.trimIndent()
     }
 
     private fun buildUpdateMessageTextScript(
@@ -718,7 +821,6 @@ class DefaultWebContentExtractor(
         return true;
     """.trimIndent()
     }
-
 
     private fun buildInjectButtonScript(
         messageId: String,
@@ -968,7 +1070,6 @@ class DefaultWebContentExtractor(
         })();
     """.trimIndent()
 
-
     private fun buildRemoveSendActionObserverScript(config: SelectorConfig) = """
         (function() {
             var sendBtn = document.querySelector('${config.sendButtonSelector}');
@@ -1016,10 +1117,14 @@ class DefaultWebContentExtractor(
                 window._chatguard_observers = {};
             }
             
-            var previousMessageCount = 0;
+            var lastProcessedCount = 0;
             var debounceTimer = null;
+            var isProcessing = false;
             
             var callback = function() {
+                if (isProcessing) return;
+                isProcessing = true;
+                
                 try {
                     ${
         generateExtractionLogic(
@@ -1031,44 +1136,52 @@ class DefaultWebContentExtractor(
     }
                 } catch(e) {
                     $BRIDGE_NAME.onError('$callbackId', e.message || 'Observer error');
+                } finally {
+                    isProcessing = false;
                 }
             };
             
-            var checkForNewMessages = function() {
-                var currentMessages = document.querySelectorAll('${config.messageSelector}');
-                var currentCount = currentMessages.length;
-                
-                if (currentCount > previousMessageCount) {
-                    previousMessageCount = currentCount;
-                    return true;
-                }
-                return false;
-            };
-            
-            var debouncedCallback = function() {
+            var triggerCallback = function() {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(function() {
-                    if (checkForNewMessages()) {
+                    var currentCount = document.querySelectorAll('${config.messageSelector}').length;
+                    if (currentCount !== lastProcessedCount) {
+                        lastProcessedCount = currentCount;
                         callback();
                     }
-                }, 100);
+                }, 150);
             };
             
             var observer = new MutationObserver(function(mutations) {
-                var hasNewContent = mutations.some(function(mutation) {
-                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                        return Array.from(mutation.addedNodes).some(function(node) {
-                            return node.nodeType === 1 && (
-                                (node.matches && node.matches('${config.messageSelector}')) ||
-                                (node.querySelector && node.querySelector('${config.messageSelector}'))
-                            );
-                        });
-                    }
-                    return false;
-                });
+                var shouldTrigger = false;
                 
-                if (hasNewContent) {
-                    debouncedCallback();
+                for (var i = 0; i < mutations.length; i++) {
+                    var mutation = mutations[i];
+                    
+                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                        for (var j = 0; j < mutation.addedNodes.length; j++) {
+                            var node = mutation.addedNodes[j];
+                            if (node.nodeType === 1) {
+                                if ((node.matches && node.matches('${config.messageSelector}')) ||
+                                    (node.querySelector && node.querySelector('${config.messageSelector}'))) {
+                                    shouldTrigger = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (mutation.type === 'characterData' || 
+                        (mutation.type === 'attributes' && mutation.target.matches && 
+                         mutation.target.matches('${config.messageSelector}'))) {
+                        shouldTrigger = true;
+                    }
+                    
+                    if (shouldTrigger) break;
+                }
+                
+                if (shouldTrigger) {
+                    triggerCallback();
                 }
             });
             
@@ -1087,11 +1200,12 @@ class DefaultWebContentExtractor(
             
             observer.observe(container, { 
                 childList: true, 
-                subtree: true
+                subtree: true,
+                characterData: true,
+                attributes: true
             });
             
-            previousMessageCount = document.querySelectorAll('${config.messageSelector}').length;
-            
+            lastProcessedCount = document.querySelectorAll('${config.messageSelector}').length;
             callback();
         })();
     """.trimIndent()

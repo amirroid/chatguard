@@ -1,5 +1,6 @@
 package ir.sysfail.chatguard.features.web_frame
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -76,7 +77,8 @@ fun WebFrameScreen(
                 webContentExtractor.observeBackgroundColor(viewModel::updateBackgroundColor)
 
                 scope.launch {
-                    webContentExtractor.removeSendActionObserver()
+                    webContentExtractor.clearAllFlags()
+
                     viewModel.onPageLoaded()
 
                     if (!webContentExtractor.isChatPage()) {
@@ -183,11 +185,17 @@ fun WebFrameScreen(
                     )
                 }
 
-                is WebFrameEvent.SendMessage -> webContentExtractor.sendMessage(event.message)
-                is WebFrameEvent.UpdateMessageText -> webContentExtractor.updateMessageText(
-                    event.messageId,
-                    event.newText
-                )
+                is WebFrameEvent.SendMessage -> {
+                    Log.d("sadsadsadasdsadsa", "handleSendMessage: ${event.message}")
+                    webContentExtractor.sendMessage(event.message)
+                }
+
+                is WebFrameEvent.UpdateMessageText -> {
+                    webContentExtractor.updateMessageText(
+                        event.messageId,
+                        event.newText
+                    )
+                }
 
                 is WebFrameEvent.RefreshWebView -> webViewState.reload()
             }
@@ -204,7 +212,12 @@ fun WebFrameScreen(
 
     BackHandler {
         if (webViewState.canGoBack) {
-            webViewState.goBack()
+            scope.launch {
+                webContentExtractor.removeMessagesObserver()
+                webContentExtractor.removeSendActionObserver()
+                webContentExtractor.clearAllFlags()
+                webViewState.goBack()
+            }
         } else {
             onBack.invoke()
         }

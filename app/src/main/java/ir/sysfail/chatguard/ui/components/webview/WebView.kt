@@ -27,7 +27,6 @@ fun WebView(
             WebView(context).apply {
                 state.webView = this
 
-                setLayerType(View.LAYER_TYPE_HARDWARE, null)
                 setBackgroundColor(Color.TRANSPARENT)
 
                 settings.apply {
@@ -58,6 +57,7 @@ fun WebView(
                         state.isLoading = false
                         state.canGoBack = canGoBack()
                         state.canGoForward = canGoForward()
+                        onNewPageLoaded.invoke()
                     }
 
                     override fun onReceivedError(
@@ -74,15 +74,6 @@ fun WebView(
                         super.onReceivedError(view, request, error)
                     }
 
-
-                    override fun doUpdateVisitedHistory(
-                        view: WebView?,
-                        url: String?,
-                        isReload: Boolean
-                    ) {
-                        onNewPageLoaded.invoke()
-                        super.doUpdateVisitedHistory(view, url, isReload)
-                    }
 
 
                     override fun onReceivedHttpError(

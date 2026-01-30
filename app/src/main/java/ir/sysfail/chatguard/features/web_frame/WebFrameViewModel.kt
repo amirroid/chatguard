@@ -1,5 +1,6 @@
 package ir.sysfail.chatguard.features.web_frame
 
+import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -154,8 +155,11 @@ class WebFrameViewModel(
     }
 
     fun sendPoeticPublicKey() = viewModelScope.launch(Dispatchers.IO) {
+        Log.d("sadsadsadasdsadsa", "sendPoeticPublicKey:")
         getPoeticSignedPublicKeyUseCase.invoke().onSuccess {
             _events.send(WebFrameEvent.SendMessage(it))
+        }.onFailure {
+            Log.e("sadsadsadasdsadsa", "sendPoeticPublicKey: ${it.message}", it)
         }
     }
 
@@ -170,10 +174,13 @@ class WebFrameViewModel(
     }
 
     fun handleSendMessage(message: String) = viewModelScope.launch(Dispatchers.IO) {
+        Log.d("sadsadsadasdsadsa", "handleSendMessage: $message")
         _userPublicKey.filterNotNull().firstOrNull()?.onSuccess { key ->
             encryptionUseCase(message, key)
                 .onSuccess { encryptedMessage ->
                     _events.send(WebFrameEvent.SendMessage(encryptedMessage))
+                }.onFailure {
+                    Log.e("sadsadsadasdsadsa", "handleSendMessage: ${it.message}", it)
                 }
         }?.onFailure {
             _events.send(WebFrameEvent.SendMessage(message))

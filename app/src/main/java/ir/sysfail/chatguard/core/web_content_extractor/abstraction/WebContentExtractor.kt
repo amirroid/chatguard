@@ -140,4 +140,6 @@ interface WebContentExtractor {
      */
     suspend fun executeInitialScript()
 
+
+    suspend fun clearAllFlags()
 }

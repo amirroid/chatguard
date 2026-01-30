@@ -207,6 +207,50 @@ fun GuideScreen(onBack: () -> Unit) {
                     append("را انتخاب کرده، متن موردنظر را وارد نموده و دکمه ارسال را فشار دهید.")
                 }
             )
+
+            Text(
+                "نحوه فعال‌سازی سرویس Accessibility",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+            Text(
+                buildAnnotatedString {
+                    append("برای فعال‌سازی کامل قابلیت‌های چت‌گارد، لازم است سرویس دسترسی (Accessibility Service) را فعال کنید.\n\n")
+                    append("ابتدا بر روی گزینه ")
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                    append("اعطای مجوز ")
+                    pop()
+                    append("کلیک کنید. در صفحه تنظیمات بازشده، وارد بخش ")
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                    append("Downloaded apps ")
+                    pop()
+                    append("(یا «برنامه‌های دانلودشده») شوید.\n\n")
+                    append("در لیست برنامه‌ها، گزینه ")
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                    append("ChatGuard ")
+                    pop()
+                    append("را پیدا کرده و انتخاب کنید. سپس گزینه ")
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                    append("Use service ")
+                    pop()
+                    append("یا ")
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                    append("Enable ")
+                    pop()
+                    append("را فعال کنید.\n\n")
+                    append("در مرحله بعد، پیام هشدار سیستم را مطالعه کرده و برای نهایی شدن، گزینه ")
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                    append("Allow ")
+                    pop()
+                    append("یا ")
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                    append("OK ")
+                    pop()
+                    append("را انتخاب نمایید.\n\n")
+                    append("پس از فعال‌سازی موفق، می‌توانید به برنامه بازگشته و از تمامی قابلیت‌های چت‌گارد بدون محدودیت استفاده کنید.")
+                }
+            )
         }
     }
 }
