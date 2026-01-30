@@ -11,4 +11,6 @@ object Constants {
     const val CHANNEL_ID = "chatguard"
 
     const val KEYS_EXTENSION = "appkeys"
+
+    const val CRASH_DATA_KEY = "crash_data"
 }

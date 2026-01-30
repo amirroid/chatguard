@@ -826,38 +826,38 @@ class DefaultWebContentExtractor(
             var inputs = document.querySelectorAll('${config.inputFieldSelector}');
             if (inputs.length === 0) return false;
         
-            inputs.forEach(function(input) {
-                var valueSet = false;
+            var input = inputs[0];
             
-                try {
-                    var setter;
-                    if (input.tagName === 'TEXTAREA') {
-                        setter = Object.getOwnPropertyDescriptor(
-                            window.HTMLTextAreaElement.prototype,
-                            'value'
-                        ).set;
-                    } else {
-                        setter = Object.getOwnPropertyDescriptor(
-                            window.HTMLInputElement.prototype,
-                            'value'
-                        ).set;
-                    }
-            
-                    setter.call(input, ${JSONObject.quote(message)});
-                    valueSet = true;
-                } catch (e) { }
-            
-                if (!valueSet) {
-                    if ('value' in input) {
-                        input.value = ${JSONObject.quote(message)};
-                    } else {
-                        input.innerText = ${JSONObject.quote(message)};
-                    }
+            var valueSet = false;
+        
+            try {
+                var setter;
+                if (input.tagName === 'TEXTAREA') {
+                    setter = Object.getOwnPropertyDescriptor(
+                        window.HTMLTextAreaElement.prototype,
+                        'value'
+                    ).set;
+                } else {
+                    setter = Object.getOwnPropertyDescriptor(
+                        window.HTMLInputElement.prototype,
+                        'value'
+                    ).set;
                 }
-            
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-                input.dispatchEvent(new Event('change', { bubbles: true }));
-            });
+        
+                setter.call(input, ${JSONObject.quote(message)});
+                valueSet = true;
+            } catch (e) { }
+        
+            if (!valueSet) {
+                if ('value' in input) {
+                    input.value = ${JSONObject.quote(message)};
+                } else {
+                    input.innerText = ${JSONObject.quote(message)};
+                }
+            }
+        
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
         
             setTimeout(function () {
                 var sendBtn = document.querySelector('${config.sendButtonSelector}');
@@ -881,9 +881,8 @@ class DefaultWebContentExtractor(
             }, 200);
         
             return true;
-        """.trimIndent()
+    """.trimIndent()
     }
-
     private fun buildObserveSendActionScript(
         config: SelectorConfig,
         callbackId: String

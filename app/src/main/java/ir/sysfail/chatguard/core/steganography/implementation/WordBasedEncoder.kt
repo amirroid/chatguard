@@ -21,7 +21,7 @@ class WordBasedEncoder(
 ) : PoeticEncoder {
 
     companion object {
-        private const val WORDS_PER_LINE = 6
+        private const val WORDS_PER_LINE = 12
     }
 
     override suspend fun encode(data: ByteArray): Result<String> =

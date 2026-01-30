@@ -3,7 +3,9 @@ package ir.sysfail.chatguard
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
+import ir.sysfail.chatguard.core.exception.GlobalExceptionHandler
 import ir.sysfail.chatguard.core.initializer.abstraction.StartupInitializer
 import ir.sysfail.chatguard.di.applicationModule
 import ir.sysfail.chatguard.di.bridgeModule
@@ -23,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.get
 import org.koin.android.ext.android.getKoin
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.GlobalContext.startKoin
@@ -36,8 +39,14 @@ class ChatGuardApp : Application() {
 
         NotificationManagerCompat.from(this)
             .createNotificationChannel(
-                NotificationChannel(Constants.CHANNEL_ID, "برای استفاده از بکگراند", NotificationManager.IMPORTANCE_DEFAULT)
+                NotificationChannel(
+                    Constants.CHANNEL_ID,
+                    "برای استفاده از بکگراند",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                )
             )
+
+        setupGlobalExceptionHandler()
 
         startKoin {
             androidContext(this@ChatGuardApp)
@@ -56,5 +65,15 @@ class ChatGuardApp : Application() {
 
             startupScope.cancel()
         }
+    }
+
+    private fun setupGlobalExceptionHandler() {
+        Thread.setDefaultUncaughtExceptionHandler(
+            GlobalExceptionHandler(
+                applicationContext = applicationContext,
+                oldHandler = Thread.getDefaultUncaughtExceptionHandler(),
+                onCrash = {}
+            )
+        )
     }
 }

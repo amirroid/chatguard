@@ -143,10 +143,10 @@ class WebFrameViewModel(
     }
 
     private fun startTaskProcessor() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             taskQueue.consumeAsFlow()
                 .collect { task ->
-                    launch {
+                    launch(Dispatchers.IO) {
                         processMessageTask(task)
                     }
                 }
@@ -169,7 +169,7 @@ class WebFrameViewModel(
         }
     }
 
-    fun handleSendMessage(message: String) = viewModelScope.launch {
+    fun handleSendMessage(message: String) = viewModelScope.launch(Dispatchers.IO) {
         _userPublicKey.filterNotNull().firstOrNull()?.onSuccess { key ->
             encryptionUseCase(message, key)
                 .onSuccess { encryptedMessage ->

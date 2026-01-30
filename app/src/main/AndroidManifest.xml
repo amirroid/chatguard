@@ -28,7 +28,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <activity
             android:name=".features.messages.MessagesActivity"
             android:excludeFromRecents="true"
@@ -37,7 +36,14 @@
             android:noHistory="true"
             android:taskAffinity=""
             android:theme="@style/Theme.ChatGuard.Transparent" />
-
+        <activity
+            android:name=".features.crash.DisplayCrashActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.ChatGuard.Transparent" />
 
         <service
             android:name=".services.MessengerReaderService"
