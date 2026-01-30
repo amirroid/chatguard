@@ -42,7 +42,8 @@
             android:exported="false"
             android:finishOnTaskLaunch="true"
             android:noHistory="true"
-            android:taskAffinity=""
+            android:process=":crash"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.ChatGuard.Transparent" />
 
         <service

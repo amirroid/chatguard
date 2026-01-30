@@ -1,5 +1,6 @@
 package ir.sysfail.chatguard.features.crash
 
+import android.content.ClipData
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -7,7 +8,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,15 +20,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.ErrorOutline
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.LocationOn
-import androidx.compose.material.icons.rounded.Message
-import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -42,22 +36,23 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import ir.sysfail.chatguard.core.exception.ApplicationCrash
 import ir.sysfail.chatguard.ui.theme.ChatGuardTheme
 import ir.sysfail.chatguard.utils.Constants
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
 class DisplayCrashActivity : AppCompatActivity() {
@@ -87,7 +82,8 @@ fun CrashScreen(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboardManager = LocalClipboard.current
+    val scope = rememberCoroutineScope()
 
     if (applicationCrash == null) return
 
@@ -99,6 +95,7 @@ fun CrashScreen(
                 .fillMaxWidth()
                 .padding(bottom = 32.dp)
         ) {
+            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -121,134 +118,142 @@ fun CrashScreen(
 
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.outlineVariant
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp)
             ) {
-                CrashInfoCard(
-                    title = "Error Message",
-                    icon = Icons.Rounded.Message,
-                    iconTint = MaterialTheme.colorScheme.error
+                // Compact Error Info
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(
-                        text = applicationCrash.message.ifEmpty { "No message" },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                CrashInfoCard(
-                    title = "Exception Type",
-                    icon = Icons.Rounded.BugReport,
-                    iconTint = MaterialTheme.colorScheme.tertiary
-                ) {
-                    Text(
-                        text = applicationCrash.exception,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                CrashInfoCard(
-                    title = "Location",
-                    icon = Icons.Rounded.LocationOn,
-                    iconTint = MaterialTheme.colorScheme.primary
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            InfoRow(label = "File", value = applicationCrash.fileName)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            InfoRow(label = "Line", value = applicationCrash.lineNumber.toString())
+                        // Exception Type
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                            Text(
+                                text = applicationCrash.exception,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Error Message
+                        Text(
+                            text = applicationCrash.message.ifEmpty { "No message" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Compact Info Grid
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                CompactInfoItem(
+                                    label = "Location",
+                                    value = "${applicationCrash.fileName}:${applicationCrash.lineNumber}"
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            CompactInfoItem(
+                                label = "App Version",
+                                value = applicationCrash.appVersion,
+                                modifier = Modifier.weight(1f)
+                            )
+                            CompactInfoItem(
+                                label = "Device",
+                                value = applicationCrash.device.model,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                CrashInfoCard(
-                    title = "App Information",
-                    icon = Icons.Rounded.Info,
-                    iconTint = MaterialTheme.colorScheme.secondary
+                // Stack Trace - Takes most space
+                Text(
+                    text = "Stack Trace",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 200.dp, max = 400.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    InfoRow(label = "Version", value = applicationCrash.appVersion)
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                CrashInfoCard(
-                    title = "Device Information",
-                    icon = Icons.Rounded.PhoneAndroid,
-                    iconTint = MaterialTheme.colorScheme.tertiary
-                ) {
-                    Column {
-                        InfoRow(
-                            label = "Model",
-                            value = applicationCrash.device.model
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        InfoRow(
-                            label = "Android",
-                            value = "${applicationCrash.device.androidVersion} (API ${applicationCrash.device.apiVersion})"
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                CrashInfoCard(
-                    title = "Stack Trace",
-                    icon = Icons.Rounded.Code,
-                    iconTint = MaterialTheme.colorScheme.error
-                ) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                         Text(
                             text = applicationCrash.stacktrace,
                             style = MaterialTheme.typography.bodySmall,
                             fontFamily = FontFamily.Monospace,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 300.dp)
                                 .verticalScroll(rememberScrollState())
-                                .padding(12.dp),
-                            color = MaterialTheme.colorScheme.onSurface
+                                .padding(16.dp),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.87f)
                         )
                     }
                 }
 
+                Spacer(modifier = Modifier.height(24.dp))
 
+                // Action Buttons
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     FilledTonalButton(
                         onClick = {
                             val crashReport = buildCrashReport(applicationCrash)
-                            clipboardManager.setText(AnnotatedString(crashReport))
-                            Toast.makeText(context, "Crash report copied!", Toast.LENGTH_SHORT).show()
+                            scope.launch {
+                                clipboardManager.setClipEntry(
+                                    ClipEntry(
+                                        ClipData.newPlainText(
+                                            "Report",
+                                            crashReport
+                                        )
+                                    )
+                                )
+                            }
+                            Toast.makeText(context, "Crash report copied!", Toast.LENGTH_SHORT)
+                                .show()
                         },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                        )
+                        modifier = Modifier.weight(1f)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.ContentCopy,
@@ -272,75 +277,37 @@ fun CrashScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Close App")
+                        Text("Close")
                     }
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
 }
 
 @Composable
-private fun CrashInfoCard(
-    title: String,
-    icon: ImageVector,
-    iconTint: Color,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 12.dp)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            content()
-        }
-    }
-}
-
-@Composable
-private fun InfoRow(
+private fun CompactInfoItem(
     label: String,
-    value: String
+    value: String,
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
+    Column(modifier = modifier) {
         Text(
-            text = "$label:",
-            style = MaterialTheme.typography.bodySmall,
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-            textAlign = TextAlign.End
-        )
+        Spacer(modifier = Modifier.height(2.dp))
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }
 
@@ -363,7 +330,7 @@ private fun buildCrashReport(crash: ApplicationCrash): String {
         appendLine("❌ Error Details:")
         appendLine("├─ Exception: ${crash.exception}")
         appendLine("├─ Message: ${crash.message}")
-        appendLine("├─ Fil ${crash.fileName}")
+        appendLine("├─ File: ${crash.fileName}")
         appendLine("└─ Line: ${crash.lineNumber}")
         appendLine()
 

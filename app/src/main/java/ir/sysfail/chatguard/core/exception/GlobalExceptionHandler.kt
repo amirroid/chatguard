@@ -3,7 +3,7 @@ package ir.sysfail.chatguard.core.exception
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.Bundle
+import android.util.Log
 import ir.sysfail.chatguard.BuildConfig
 import ir.sysfail.chatguard.features.crash.DisplayCrashActivity
 import ir.sysfail.chatguard.utils.Constants
@@ -20,51 +20,51 @@ class GlobalExceptionHandler(
 
     override fun uncaughtException(t: Thread, e: Throwable) {
         try {
-            val message = e.message.orEmpty()
-            val exceptionClass = e::class.qualifiedName.orEmpty()
-            val stackTrace = e.stackTraceToString()
-
-            val firstStacktrace = e.stackTrace.firstOrNull()
-            val fileName = firstStacktrace?.fileName.orEmpty()
-            val lineNumber = firstStacktrace?.lineNumber ?: 0
-
-            val crash = ApplicationCrash(
-                stacktrace = stackTrace,
-                message = message,
-                exception = exceptionClass,
-                fileName = fileName,
-                lineNumber = lineNumber,
-                appVersion = BuildConfig.VERSION_NAME,
-                device = ApplicationCrash.Device(
-                    apiVersion = Build.VERSION.SDK_INT,
-                    androidVersion = Build.VERSION.RELEASE,
-                    model = "${Build.MANUFACTURER} ${Build.BRAND} ${Build.MODEL} (${Build.DEVICE})"
-                )
-            )
-            onCrash.invoke(crash)
-
-            try {
-                val intent = Intent(applicationContext, DisplayCrashActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-
-                    putExtra(Constants.CRASH_DATA_KEY, Json.encodeToString(crash))
-                }
-                applicationContext.startActivity(intent)
-
-                Thread.sleep(300)
-            } catch (activityException: Exception) {
-                activityException.printStackTrace()
-            }
-
+            handleUncaughtException(t, e)
         } catch (handlerException: Exception) {
-            handlerException.printStackTrace()
-        } finally {
-            if (oldHandler != null) {
-                oldHandler.uncaughtException(t, e)
-            } else {
-                android.os.Process.killProcess(android.os.Process.myPid())
-                exitProcess(10)
-            }
+            Log.e("GlobalExceptionHandler", "Failed to handle crash", handlerException)
         }
+
+        oldHandler?.uncaughtException(t, e) ?: run {
+            exitProcess(1)
+        }
+    }
+
+    private fun handleUncaughtException(t: Thread, e: Throwable) {
+        val message = e.message.orEmpty()
+        val exceptionClass = e::class.qualifiedName.orEmpty()
+        val stackTrace = e.stackTraceToString()
+
+        val firstStacktrace = e.stackTrace.firstOrNull()
+        val fileName = firstStacktrace?.fileName.orEmpty()
+        val lineNumber = firstStacktrace?.lineNumber ?: 0
+
+        val crash = ApplicationCrash(
+            stacktrace = stackTrace,
+            message = message,
+            exception = exceptionClass,
+            fileName = fileName,
+            lineNumber = lineNumber,
+            appVersion = BuildConfig.VERSION_NAME,
+            device = ApplicationCrash.Device(
+                apiVersion = Build.VERSION.SDK_INT,
+                androidVersion = Build.VERSION.RELEASE,
+                model = "${Build.MANUFACTURER} ${Build.BRAND} ${Build.MODEL} (${Build.DEVICE})"
+            )
+        )
+
+        onCrash.invoke(crash)
+
+        val intent = Intent(applicationContext, DisplayCrashActivity::class.java).apply {
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP
+            )
+            putExtra(Constants.CRASH_DATA_KEY, Json.encodeToString(crash))
+        }
+
+        applicationContext.startActivity(intent)
+
+        Thread.sleep(500)
     }
 }
