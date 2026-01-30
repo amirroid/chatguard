@@ -29,6 +29,7 @@ class DefaultWebContentExtractor(
     private var globalErrorListener: ((String, String) -> Unit)? = null
     private var currentSendActionObserverCallbackId: String? = null
     private var buttonClickListener: ((ButtonClickData) -> Unit)? = null
+    private var currentMessagesObserverCallbackId: String? = null
 
     override fun attachToWebView(webView: WebView) {
         if (this.webView == webView && isInitialized) return
@@ -208,9 +209,11 @@ class DefaultWebContentExtractor(
 
     override fun observeMessages(onMessagesChanged: (List<ElementData>) -> Unit) {
         val webView = webView ?: return
+        removeMessagesObserver()
 
         executeExtraction { config, processing, callbackId ->
             observers[callbackId] = true
+            currentMessagesObserverCallbackId = callbackId
 
             callbacks[callbackId] = { json ->
                 val messages = parseDetailedData(JSONArray(json), config, processing)
@@ -219,6 +222,36 @@ class DefaultWebContentExtractor(
 
             val script = buildObserverScript(config, callbackId)
             webView.post { webView.evaluateJavascript(script, null) }
+        }
+    }
+
+    override fun removeMessagesObserver() {
+        val callbackId = currentMessagesObserverCallbackId ?: return
+        val webView = webView ?: return
+
+        callbacks.remove(callbackId)
+        observers.remove(callbackId)
+        currentMessagesObserverCallbackId = null
+
+        val script = """
+            (function() {
+                if (window._chatguard_observers && window._chatguard_observers['$callbackId']) {
+                    var obs = window._chatguard_observers['$callbackId'];
+                    if (obs.deactivate) {
+                        obs.deactivate();
+                    }
+                    if (obs.observer && obs.observer.disconnect) {
+                        obs.observer.disconnect();
+                    } else if (obs.disconnect) {
+                        obs.disconnect();
+                    }
+                    delete window._chatguard_observers['$callbackId'];
+                }
+            })();
+        """.trimIndent()
+
+        webView.post {
+            webView.evaluateJavascript(script, null)
         }
     }
 
@@ -982,7 +1015,10 @@ class DefaultWebContentExtractor(
             if (!window._chatguard_observers) {
                 window._chatguard_observers = {};
             }
-        
+            
+            var previousMessageCount = 0;
+            var debounceTimer = null;
+            
             var callback = function() {
                 try {
                     ${
@@ -997,33 +1033,47 @@ class DefaultWebContentExtractor(
                     $BRIDGE_NAME.onError('$callbackId', e.message || 'Observer error');
                 }
             };
-        
+            
+            var checkForNewMessages = function() {
+                var currentMessages = document.querySelectorAll('${config.messageSelector}');
+                var currentCount = currentMessages.length;
+                
+                if (currentCount > previousMessageCount) {
+                    previousMessageCount = currentCount;
+                    return true;
+                }
+                return false;
+            };
+            
+            var debouncedCallback = function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function() {
+                    if (checkForNewMessages()) {
+                        callback();
+                    }
+                }, 100);
+            };
+            
             var observer = new MutationObserver(function(mutations) {
-                var hasRelevantChange = mutations.some(function(mutation) {
+                var hasNewContent = mutations.some(function(mutation) {
                     if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                         return Array.from(mutation.addedNodes).some(function(node) {
                             return node.nodeType === 1 && (
-                                node.matches && (
-                                    node.matches('${config.messageSelector}') ||
-                                    node.matches('${config.messageMetaSelector}')
-                                ) ||
-                                node.querySelector && (
-                                    node.querySelector('${config.messageSelector}') ||
-                                    node.querySelector('${config.messageMetaSelector}')
-                                )
+                                (node.matches && node.matches('${config.messageSelector}')) ||
+                                (node.querySelector && node.querySelector('${config.messageSelector}'))
                             );
                         });
                     }
-                    return mutation.type === 'characterData' || mutation.type === 'attributes';
+                    return false;
                 });
-        
-                if (hasRelevantChange) {
-                    callback();
+                
+                if (hasNewContent) {
+                    debouncedCallback();
                 }
             });
-        
+            
             window._chatguard_observers['$callbackId'] = observer;
-        
+            
             var container = document.querySelector('${config.containerSelector}');
             if (!container) {
                 var firstMessage = document.querySelector('${config.messageSelector}');
@@ -1034,14 +1084,14 @@ class DefaultWebContentExtractor(
             if (!container) {
                 container = document.body;
             }
-        
+            
             observer.observe(container, { 
                 childList: true, 
-                subtree: true, 
-                characterData: true,
-                attributes: true
+                subtree: true
             });
-        
+            
+            previousMessageCount = document.querySelectorAll('${config.messageSelector}').length;
+            
             callback();
         })();
     """.trimIndent()
@@ -1054,9 +1104,9 @@ class DefaultWebContentExtractor(
     ): String {
         val detailedAttrs = if (includeDetailedAttrs) {
             """
-            className: parent.className || '',
-            id: parent.id || '',
-            dir: parent.getAttribute('dir') || '',"""
+                className: parent.className || '',
+                id: parent.id || '',
+                dir: parent.getAttribute('dir') || '',"""
         } else {
             ""
         }
@@ -1068,85 +1118,81 @@ class DefaultWebContentExtractor(
         }
 
         return """
-        var elements = document.querySelectorAll('${config.messageSelector}');
-        var contents = [];
-        var ignoreSelectors = [${(config.ignoreSelectors + ignoreSelectors).joinToString { "'$it'" }}];
-        var attributes = [${config.attributesToExtract.joinToString { "'$it'" }}];
-        
-        function isElementVisible(el) {
-            var rect = el.getBoundingClientRect();
-            var windowHeight = window.innerHeight || document.documentElement.clientHeight;
-            var threshold = $VISIBILITY_THRESHOLD_PX;
-            return (
-                rect.top < windowHeight + threshold &&
-                rect.bottom > -threshold
-            );
-        }
-        
-        function extractContent(el) {
-            var parent = el.closest('${config.messageParentSelector}');
-            if (!parent) return null;
-        
-            var messageElements = parent.querySelectorAll('${config.messageSelector}');
-            var textParts = [];
-            var htmlParts = [];
-            
-            messageElements.forEach(function(msgEl) {
-                var clone = msgEl.cloneNode(true);
-            
-                ignoreSelectors.forEach(function(sel) {
-                    clone.querySelectorAll(sel).forEach(function(m) { m.remove(); });
-                });
-            
-                clone.querySelectorAll('div, p, br, li').forEach(function(n) {
-                    n.insertAdjacentText('afterend', '\n');
-                });
-            
-                var rawText = clone.textContent || '';
-                var text = rawText
-                    .replace(/\n+/g, ' ')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-            
-                var html = clone.innerHTML || '';
+                var parents = new Set();
+                var firstMessages = document.querySelectorAll('${config.messageSelector}');
                 
-                if (text) textParts.push(text);
-                if (html) htmlParts.push(html);
-            });
-            
-            var finalText = textParts.join(' ');
-            var finalHtml = htmlParts.join(' ');
-        
-            if (finalText || finalHtml) {
-                var item = {
-                    text: finalText,
-                    html: finalHtml,$detailedAttrs
-                };
-        
-                attributes.forEach(function(attr) {
-                    item[attr] = parent.getAttribute(attr) || '';
+                firstMessages.forEach(function(el) {
+                    var parent = el.closest('${config.messageParentSelector}');
+                    if (parent) parents.add(parent);
                 });
-        
-                return item;
-            }
-            return null;
-        }
-        
-        var processedParents = new Set();
-        
-        elements.forEach(function(el) {
-            var parent = el.closest('${config.messageParentSelector}');
-            if (parent && !processedParents.has(parent)) {
-                processedParents.add(parent);
                 
-                if ($visibilityCheck) {
-                    var item = extractContent(el);
-                    if (item) contents.push(item);
+                var contents = [];
+                var ignoreSelectorsJoined = [${(config.ignoreSelectors + ignoreSelectors).joinToString { "'$it'" }}].join(',');
+                var attributes = [${config.attributesToExtract.joinToString { "'$it'" }}];
+                
+                function isElementVisible(el) {
+                    var rect = el.getBoundingClientRect();
+                    var windowHeight = window.innerHeight || document.documentElement.clientHeight;
+                    var threshold = $VISIBILITY_THRESHOLD_PX;
+                    return rect.top < windowHeight + threshold && rect.bottom > -threshold;
                 }
-            }
-        });
-        
-        $BRIDGE_NAME.onContentExtracted('$callbackId', JSON.stringify(contents));
-    """.trimIndent()
+                
+                function cleanText(node) {
+                    var clone = node.cloneNode(true);
+                    
+                    if (ignoreSelectorsJoined) {
+                        clone.querySelectorAll(ignoreSelectorsJoined).forEach(function(el) {
+                            el.remove();
+                        });
+                    }
+                    
+                    var textNodes = [];
+                    var walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT, null, false);
+                    var textNode;
+                    
+                    while (textNode = walker.nextNode()) {
+                        var text = textNode.nodeValue.trim();
+                        if (text) textNodes.push(text);
+                    }
+                    
+                    return textNodes.join(' ').replace(/\s+/g, ' ');
+                }
+                
+                parents.forEach(function(parent) {
+                    if (!$visibilityCheck) return;
+                    
+                    var messageElements = parent.querySelectorAll('${config.messageSelector}');
+                    if (messageElements.length === 0) return;
+                    
+                    var textParts = [];
+                    var htmlParts = [];
+                    
+                    messageElements.forEach(function(msgEl) {
+                        var text = cleanText(msgEl);
+                        if (text) textParts.push(text);
+                        
+                        var html = msgEl.innerHTML || '';
+                        if (html) htmlParts.push(html);
+                    });
+                    
+                    var finalText = textParts.join(' ');
+                    var finalHtml = htmlParts.join(' ');
+                    
+                    if (!finalText && !finalHtml) return;
+                    
+                    var item = {
+                        text: finalText,
+                        html: finalHtml,$detailedAttrs
+                    };
+                    
+                    attributes.forEach(function(attr) {
+                        item[attr] = parent.getAttribute(attr) || '';
+                    });
+                    
+                    contents.push(item);
+                });
+                
+                $BRIDGE_NAME.onContentExtracted('$callbackId', JSON.stringify(contents));
+        """.trimIndent()
     }
 }

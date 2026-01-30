@@ -1,5 +1,6 @@
 package ir.sysfail.chatguard.features.web_frame
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -28,9 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigationevent.NavigationEventInfo
-import androidx.navigationevent.compose.NavigationBackHandler
-import androidx.navigationevent.compose.rememberNavigationEventState
 import ir.sysfail.chatguard.R
 import ir.sysfail.chatguard.core.messanger.models.MessengerPlatform
 import ir.sysfail.chatguard.core.web_content_extractor.abstraction.WebContentExtractor
@@ -204,11 +202,11 @@ fun WebFrameScreen(
     }
 
 
-    NavigationBackHandler(
-        rememberNavigationEventState(NavigationEventInfo.None)
-    ) {
+    BackHandler {
         if (webViewState.canGoBack) {
             webViewState.goBack()
-        } else onBack.invoke()
+        } else {
+            onBack.invoke()
+        }
     }
 }

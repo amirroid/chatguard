@@ -48,7 +48,6 @@ class GlobalExceptionHandler(
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
 
                     putExtra(Constants.CRASH_DATA_KEY, Json.encodeToString(crash))
-
                 }
                 applicationContext.startActivity(intent)
 

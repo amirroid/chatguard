@@ -38,6 +38,11 @@ interface WebContentExtractor {
     fun observeMessages(onMessagesChanged: (List<ElementData>) -> Unit)
 
     /**
+     * Stop observing message changes
+     */
+    fun removeMessagesObserver()
+
+    /**
      * Check if the current page is a chat page
      */
     suspend fun isChatPage(): Boolean
