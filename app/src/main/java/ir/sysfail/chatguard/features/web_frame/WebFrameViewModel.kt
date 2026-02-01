@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+import androidx.core.graphics.toColorInt
 
 class WebFrameViewModel(
     private val getPublicKeyUseCase: GetPublicKeyUseCase,
@@ -48,6 +49,7 @@ class WebFrameViewModel(
     private val taskQueue = Channel<MessageTask>(Channel.UNLIMITED)
     private val processedMessageIds = ConcurrentHashMap.newKeySet<String>()
     private val taskResults = ConcurrentHashMap<String, TaskResult>()
+    private val messageContentToId = ConcurrentHashMap<String, String>()
 
     private val _events = Channel<WebFrameEvent>(capacity = Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -64,8 +66,10 @@ class WebFrameViewModel(
     }
 
     fun updateBackgroundColor(color: String) {
-        _state.update {
-            it.copy(backgroundColor = Color(android.graphics.Color.parseColor(color)))
+        runCatching { color.toColorInt() }.getOrNull()?.let { color ->
+            _state.update {
+                it.copy(backgroundColor = Color(color))
+            }
         }
     }
 
@@ -94,27 +98,53 @@ class WebFrameViewModel(
     }
 
     fun onNewMessagesDetected(messages: List<ExtractedElementMessage>) {
+        Log.d(
+            "sdsadsadsa", "onNewMessagesDetected: ${messages.joinToString { it.id }}"
+        )
         viewModelScope.launch {
             messages.forEach { message ->
-                message.id.let { id ->
-                    val existingResult = taskResults[id]
-
-                    if (existingResult != null) {
-                        val contentChanged =
-                            message.message == existingResult.realMessage && message.message != existingResult.updatedMessage
-
-                        if (contentChanged) {
-                            processedMessageIds.remove(id)
-                            taskQueue.send(MessageTask(message))
-                        } else if (existingResult.loadIndex != loadsCount) {
-                            taskResults[id] = existingResult.copy(loadIndex = loadsCount)
-                            emitResultEvents(id, existingResult)
-                        }
-                    } else if (processedMessageIds.add(id)) {
-                        taskQueue.send(MessageTask(message))
-                    }
-                }
+                handleMessageDetection(message)
             }
+        }
+    }
+
+    private suspend fun handleMessageDetection(message: ExtractedElementMessage) {
+        val currentId = message.id
+        val messageContent = message.message
+
+        val oldId = messageContentToId[messageContent]
+        val oldResult = oldId?.let { taskResults[it] }
+
+        if (oldResult != null && oldId != currentId) {
+            processedMessageIds.remove(oldId)
+            taskResults.remove(oldId)
+            messageContentToId.remove(messageContent)
+
+            processedMessageIds.add(currentId)
+            messageContentToId[messageContent] = currentId
+            taskResults[currentId] = oldResult.copy(loadIndex = loadsCount)
+
+            emitResultEvents(currentId, oldResult)
+            return
+        }
+
+        val existingResult = taskResults[currentId]
+
+        if (existingResult != null) {
+            val contentChanged = messageContent != existingResult.realMessage
+
+            if (contentChanged) {
+                processedMessageIds.remove(currentId)
+                messageContentToId.remove(existingResult.realMessage)
+                messageContentToId[messageContent] = currentId
+                taskQueue.send(MessageTask(message))
+            } else if (existingResult.loadIndex != loadsCount) {
+                taskResults[currentId] = existingResult.copy(loadIndex = loadsCount)
+                emitResultEvents(currentId, existingResult)
+            }
+        } else if (processedMessageIds.add(currentId)) {
+            messageContentToId[messageContent] = currentId
+            taskQueue.send(MessageTask(message))
         }
     }
 
@@ -210,11 +240,13 @@ class WebFrameViewModel(
         var updatedMessage: String? = null
 
         _userPublicKey.filterNotNull().firstOrNull()?.onSuccess { key ->
-            updatedMessage = decryptionUseCase(
+            decryptionUseCase(
                 task.data.message,
                 key,
                 isAmSender = task.data.isMyMessage
-            ).getOrNull()
+            ).getOrNull()?.also {
+                updatedMessage = "🔒 $it"
+            }
         }
 
         val result = TaskResult(
@@ -233,6 +265,7 @@ class WebFrameViewModel(
         _events.close()
         processedMessageIds.clear()
         taskResults.clear()
+        messageContentToId.clear()
         super.onCleared()
     }
 }

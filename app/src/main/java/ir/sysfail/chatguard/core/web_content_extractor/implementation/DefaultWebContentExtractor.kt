@@ -227,28 +227,20 @@ class DefaultWebContentExtractor(
     override fun removeMessagesObserver() {
         val callbackId = currentMessagesObserverCallbackId ?: return
         val webView = webView ?: return
-
         callbacks.remove(callbackId)
         observers.remove(callbackId)
         currentMessagesObserverCallbackId = null
-
         val script = """
             (function() {
                 if (window._chatguard_observers && window._chatguard_observers['$callbackId']) {
                     var obs = window._chatguard_observers['$callbackId'];
-                    if (obs.deactivate) {
-                        obs.deactivate();
-                    }
-                    if (obs.observer && obs.observer.disconnect) {
-                        obs.observer.disconnect();
-                    } else if (obs.disconnect) {
+                    if (obs && obs.disconnect) {
                         obs.disconnect();
                     }
                     delete window._chatguard_observers['$callbackId'];
                 }
             })();
         """.trimIndent()
-
         webView.post {
             webView.evaluateJavascript(script, null)
         }
@@ -720,6 +712,7 @@ class DefaultWebContentExtractor(
         val escapedText = JSONObject.quote(newText)
         val escapedParentSelector = JSONObject.quote(config.messageParentSelector)
         val escapedMessageSelector = JSONObject.quote(config.messageSelector)
+        val escapedMetaSelector = JSONObject.quote(config.messageMetaSelector)
 
         return """
             const messageId = $escapedMessageId;
@@ -727,6 +720,7 @@ class DefaultWebContentExtractor(
             const newText = $escapedText;
             const parentSelector = $escapedParentSelector;
             const messageSelector = $escapedMessageSelector;
+            const metaSelector = $escapedMetaSelector;
             
             const messageParent = document.querySelector(
                 `${'$'}{parentSelector}[${'$'}{messageIdAttr}="${'$'}{messageId}"]`
@@ -739,7 +733,10 @@ class DefaultWebContentExtractor(
             if (messageElements.length === 0) return false;
             
             for (let i = messageElements.length - 1; i > 0; i--) {
-                messageElements[i].remove();
+                const element = messageElements[i];
+                if (!element.matches(metaSelector) && !element.closest(metaSelector)) {
+                    element.remove();
+                }
             }
             
             const firstElement = messageElements[0];
@@ -748,7 +745,14 @@ class DefaultWebContentExtractor(
                 firstElement instanceof HTMLTextAreaElement) {
                 firstElement.value = newText;
             } else {
+                const metaElements = firstElement.querySelectorAll(metaSelector);
+                const savedMetas = Array.from(metaElements).map(meta => meta.cloneNode(true));
+               
                 firstElement.textContent = newText;
+                
+                savedMetas.forEach(meta => {
+                    firstElement.appendChild(meta);
+                });
             }
             
             firstElement.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1176,6 +1180,8 @@ class DefaultWebContentExtractor(
             }
             
             var lastProcessedCount = 0;
+            var lastMessageIds = new Set();
+            var messageContents = new Map();
             var debounceTimer = null;
             var isProcessing = false;
             
@@ -1199,12 +1205,96 @@ class DefaultWebContentExtractor(
                 }
             };
             
+            var getMessageContent = function(parent) {
+                var messageEl = parent.querySelector('${config.messageSelector}');
+                if (!messageEl) return null;
+                return (messageEl.textContent || messageEl.value || '').trim();
+            };
+            
+            var hasChanges = function() {
+                var messages = document.querySelectorAll('${config.messageSelector}');
+                var currentCount = messages.length;
+                
+                if (currentCount !== lastProcessedCount) {
+                    return true;
+                }
+                
+                var currentIds = new Set();
+                var currentContents = new Map();
+                var parents = document.querySelectorAll('${config.messageParentSelector}[${config.messageIdData}]');
+                
+                for (var i = 0; i < parents.length; i++) {
+                    var id = parents[i].getAttribute('${config.messageIdData}');
+                    if (id) {
+                        currentIds.add(id);
+                        var content = getMessageContent(parents[i]);
+                        if (content) {
+                            currentContents.set(id, content);
+                        }
+                    }
+                }
+                
+                if (currentIds.size !== lastMessageIds.size) {
+                    return true;
+                }
+               
+                for (var id of currentIds) {
+                    if (!lastMessageIds.has(id)) {
+                        return true;
+                    }
+                }
+                
+                for (var id of lastMessageIds) {
+                    if (!currentIds.has(id)) {
+                        return true;
+                    }
+                }
+                
+                for (var [id, content] of currentContents) {
+                    if (messageContents.has(id) && messageContents.get(id) !== content) {
+                        return true;
+                    }
+                }
+                
+                for (var [currentId, currentContent] of currentContents) {
+                    if (currentContent && currentContent.startsWith('🔒')) {
+                        var foundMatch = false;
+                        for (var [oldId, oldContent] of messageContents) {
+                            if (oldContent === currentContent && oldId !== currentId && !currentIds.has(oldId)) {
+                                // پیدا شدن محتوای یکسان با ID متفاوت = تغییر ID
+                                return true;
+                            }
+                        }
+                    }
+                }
+                
+                return false;
+            };
+            
+            var updateState = function() {
+                lastProcessedCount = document.querySelectorAll('${config.messageSelector}').length;
+                
+                lastMessageIds.clear();
+                messageContents.clear();
+                
+                var parents = document.querySelectorAll('${config.messageParentSelector}[${config.messageIdData}]');
+                for (var i = 0; i < parents.length; i++) {
+                    var id = parents[i].getAttribute('${config.messageIdData}');
+                    if (id) {
+                        lastMessageIds.add(id);
+                        var content = getMessageContent(parents[i]);
+                        if (content) {
+                            messageContents.set(id, content);
+                        }
+                    }
+                }
+            };
+            
             var triggerCallback = function() {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(function() {
-                    var currentCount = document.querySelectorAll('${config.messageSelector}').length;
-                    if (currentCount !== lastProcessedCount) {
-                        lastProcessedCount = currentCount;
+                    if (hasChanges()) {
+                        updateState();
                         callback();
                     }
                 }, 150);
@@ -1212,16 +1302,36 @@ class DefaultWebContentExtractor(
             
             var observer = new MutationObserver(function(mutations) {
                 var shouldTrigger = false;
+                var relevantSelectors = [
+                    '${config.messageSelector}',
+                    '${config.messageParentSelector}'
+                ];
                 
-                for (var i = 0; i < mutations.length; i++) {
+                for (var i = 0; i < mutations.length && !shouldTrigger; i++) {
                     var mutation = mutations[i];
                     
                     if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                         for (var j = 0; j < mutation.addedNodes.length; j++) {
                             var node = mutation.addedNodes[j];
                             if (node.nodeType === 1) {
-                                if ((node.matches && node.matches('${config.messageSelector}')) ||
-                                    (node.querySelector && node.querySelector('${config.messageSelector}'))) {
+                                for (var k = 0; k < relevantSelectors.length; k++) {
+                                    if ((node.matches && node.matches(relevantSelectors[k])) ||
+                                        (node.querySelector && node.querySelector(relevantSelectors[k]))) {
+                                        shouldTrigger = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (shouldTrigger) break;
+                        }
+                    }
+                    
+                    if (mutation.type === 'attributes') {
+                        if (mutation.attributeName === '${config.messageIdData}') {
+                            shouldTrigger = true;
+                        } else if (mutation.target.matches) {
+                            for (var k = 0; k < relevantSelectors.length; k++) {
+                                if (mutation.target.matches(relevantSelectors[k])) {
                                     shouldTrigger = true;
                                     break;
                                 }
@@ -1229,13 +1339,18 @@ class DefaultWebContentExtractor(
                         }
                     }
                     
-                    if (mutation.type === 'characterData' || 
-                        (mutation.type === 'attributes' && mutation.target.matches && 
-                         mutation.target.matches('${config.messageSelector}'))) {
-                        shouldTrigger = true;
+                    if (mutation.type === 'characterData') {
+                        var parent = mutation.target.parentElement;
+                        while (parent && !shouldTrigger) {
+                            for (var k = 0; k < relevantSelectors.length; k++) {
+                                if (parent.matches && parent.matches(relevantSelectors[k])) {
+                                    shouldTrigger = true;
+                                    break;
+                                }
+                            }
+                            parent = parent.parentElement;
+                        }
                     }
-                    
-                    if (shouldTrigger) break;
                 }
                 
                 if (shouldTrigger) {
@@ -1260,10 +1375,11 @@ class DefaultWebContentExtractor(
                 childList: true, 
                 subtree: true,
                 characterData: true,
-                attributes: true
+                attributes: true,
+                attributeFilter: ['${config.messageIdData}']
             });
             
-            lastProcessedCount = document.querySelectorAll('${config.messageSelector}').length;
+            updateState();
             callback();
         })();
     """.trimIndent()

@@ -19,7 +19,7 @@ class EitaaExtractionStrategy : PlatformExtractionStrategy {
         sendButtonSelector = ".btn-send-container .btn-icon.btn-send.send",
         submitSendClick = "mousedown",
         inputFieldSelector = ".input-message-container .input-message-input",
-        messageMetaSelector = ".time",
+        messageMetaSelector = ".time.tgico",
         backgroundColorVariable = "--surface-color",
         buttonInjectionConfig = ButtonInjectionConfig(
             targetSelector = ".bubble-content .message",
