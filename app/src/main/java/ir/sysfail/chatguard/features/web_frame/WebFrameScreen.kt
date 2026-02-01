@@ -37,7 +37,7 @@ import ir.sysfail.chatguard.core.web_content_extractor.models.InfoMessage
 import ir.sysfail.chatguard.core.web_content_extractor.models.InjectedButton
 import ir.sysfail.chatguard.ui.components.webview.WebView
 import ir.sysfail.chatguard.ui.components.webview.rememberWebViewState
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.getKoin
@@ -74,22 +74,21 @@ fun WebFrameScreen(
                 webContentExtractor.setButtonClickListener(viewModel::handleButtonClick)
             },
             onNewPageLoaded = {
-                webContentExtractor.observeBackgroundColor(viewModel::updateBackgroundColor)
-
                 scope.launch {
                     webContentExtractor.clearAllFlags()
 
+                    webContentExtractor.observeBackgroundColor(viewModel::updateBackgroundColor)
                     viewModel.onPageLoaded()
 
                     if (!webContentExtractor.isChatPage()) {
-                        cancel()
                         return@launch
                     }
                     val userInfo = webContentExtractor.getUserInfo() ?: run {
-                        cancel()
                         return@launch
                     }
                     viewModel.handleUserInfoKey(userInfo)
+
+                    webContentExtractor.executeInitialScript()
                     webContentExtractor.observeSendPublicKeyButton(viewModel::sendPoeticPublicKey)
 
                     webContentExtractor.observeMessages { newElements ->
@@ -98,7 +97,6 @@ fun WebFrameScreen(
                     }
 
                     webContentExtractor.observeSendAction(viewModel::handleSendMessage)
-                    webContentExtractor.executeInitialScript()
                 }
             }
         )
@@ -154,6 +152,7 @@ fun WebFrameScreen(
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
+            Log.d("WebFrameEvent", "Received event: ${event::class.simpleName}")
             when (event) {
                 is WebFrameEvent.ShowInfoMessage -> {
                     webContentExtractor.injectInfoMessage(
@@ -186,8 +185,12 @@ fun WebFrameScreen(
                 }
 
                 is WebFrameEvent.SendMessage -> {
-                    Log.d("sadsadsadasdsadsa", "handleSendMessage: ${event.message}")
-                    webContentExtractor.sendMessage(event.message)
+                    try {
+                        webContentExtractor.sendMessage(event.message)
+                        Log.d("WebFrameEvent", "sendMessage called successfully")
+                    } catch (e: Exception) {
+                        Log.e("WebFrameEvent", "sendMessage FAILED: ${e.message}", e)
+                    }
                 }
 
                 is WebFrameEvent.UpdateMessageText -> {
@@ -209,15 +212,9 @@ fun WebFrameScreen(
         }
     }
 
-
     BackHandler {
         if (webViewState.canGoBack) {
-            scope.launch {
-                webContentExtractor.removeMessagesObserver()
-                webContentExtractor.removeSendActionObserver()
-                webContentExtractor.clearAllFlags()
-                webViewState.goBack()
-            }
+            webViewState.goBack()
         } else {
             onBack.invoke()
         }

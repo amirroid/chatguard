@@ -13,16 +13,19 @@ import ir.sysfail.chatguard.core.web_content_extractor.models.ExtractedElementMe
 import ir.sysfail.chatguard.core.web_content_extractor.models.ExtractedUserInfo
 import ir.sysfail.chatguard.core.web_content_extractor.models.InfoMessageType
 import ir.sysfail.chatguard.domain.models.crypto.CryptoKey
-import ir.sysfail.chatguard.domain.usecase.key.GetPublicKeyUseCase
 import ir.sysfail.chatguard.domain.usecase.key.AddUserPublicKeyUseCase
+import ir.sysfail.chatguard.domain.usecase.key.GetPublicKeyUseCase
 import ir.sysfail.chatguard.domain.usecase.steganography_crypto.ExtractPoeticPublicKeyUseCase
 import ir.sysfail.chatguard.domain.usecase.steganography_crypto.GetPoeticSignedPublicKeyUseCase
 import ir.sysfail.chatguard.domain.usecase.steganography_crypto.PoeticMessageDecryptionUseCase
 import ir.sysfail.chatguard.domain.usecase.steganography_crypto.PoeticMessageEncryptionUseCase
 import ir.sysfail.chatguard.domain.usecase.steganography_crypto.VerifyPoeticPublicKeyUseCase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -49,7 +52,9 @@ class WebFrameViewModel(
     private val processedMessageIds = ConcurrentHashMap.newKeySet<String>()
     private val taskResults = ConcurrentHashMap<String, TaskResult>()
 
-    private val _events = Channel<WebFrameEvent>()
+    private val _events = Channel<WebFrameEvent>(
+        capacity = Channel.BUFFERED
+    )
     val events = _events.receiveAsFlow()
 
     private var currentUsername: String? = null
@@ -157,6 +162,7 @@ class WebFrameViewModel(
     fun sendPoeticPublicKey() = viewModelScope.launch(Dispatchers.IO) {
         Log.d("sadsadsadasdsadsa", "sendPoeticPublicKey:")
         getPoeticSignedPublicKeyUseCase.invoke().onSuccess {
+            Log.d("sadsadsadasdsadsa", "sendPoeticPublicKey: $it")
             _events.send(WebFrameEvent.SendMessage(it))
         }.onFailure {
             Log.e("sadsadsadasdsadsa", "sendPoeticPublicKey: ${it.message}", it)
@@ -178,6 +184,7 @@ class WebFrameViewModel(
         _userPublicKey.filterNotNull().firstOrNull()?.onSuccess { key ->
             encryptionUseCase(message, key)
                 .onSuccess { encryptedMessage ->
+                    Log.d("sadsadsadasdsadsa", "handleSendMessage: $encryptedMessage")
                     _events.send(WebFrameEvent.SendMessage(encryptedMessage))
                 }.onFailure {
                     Log.e("sadsadsadasdsadsa", "handleSendMessage: ${it.message}", it)
@@ -230,6 +237,7 @@ class WebFrameViewModel(
 
     override fun onCleared() {
         taskQueue.close()
+        _events.close()
         processedMessageIds.clear()
         taskResults.clear()
         super.onCleared()

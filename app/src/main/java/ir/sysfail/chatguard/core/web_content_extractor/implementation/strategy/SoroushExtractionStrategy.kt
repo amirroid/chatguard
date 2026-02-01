@@ -22,7 +22,8 @@ class SoroushExtractionStrategy : PlatformExtractionStrategy {
             ".sender-title"
         ),
         attributesToExtract = listOf(MESSAGE_ID_DATA),
-        sendButtonSelector = ".send.main-button",
+        sendButtonSelector = ".send.main-button.click-allowed",
+        submitSendClick = "click",
         inputFieldSelector = "#editable-message-text",
         messageMetaSelector = ".MessageMeta",
         backgroundColorVariable = "--color-background",

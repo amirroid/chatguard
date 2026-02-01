@@ -3,7 +3,6 @@ package ir.sysfail.chatguard.ui.components.webview
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.Color
-import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -57,7 +56,6 @@ fun WebView(
                         state.isLoading = false
                         state.canGoBack = canGoBack()
                         state.canGoForward = canGoForward()
-                        onNewPageLoaded.invoke()
                     }
 
                     override fun onReceivedError(
@@ -74,7 +72,14 @@ fun WebView(
                         super.onReceivedError(view, request, error)
                     }
 
-
+                    override fun doUpdateVisitedHistory(
+                        view: WebView?,
+                        url: String?,
+                        isReload: Boolean
+                    ) {
+                        super.doUpdateVisitedHistory(view, url, isReload)
+                        onNewPageLoaded.invoke()
+                    }
 
                     override fun onReceivedHttpError(
                         view: WebView,

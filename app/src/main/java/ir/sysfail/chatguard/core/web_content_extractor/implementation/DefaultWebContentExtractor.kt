@@ -494,68 +494,6 @@ class DefaultWebContentExtractor(
     }
 
 
-    private fun buildClearAllFlagsScript() = """
-        (function() {
-            if (window.__chatguardSendObserver) {
-                var obs = window.__chatguardSendObserver;
-                
-                var input = document.querySelector('${strategy.getSelectorConfig().inputFieldSelector}');
-                if (input && obs.inputHandler) {
-                    input.removeEventListener('keydown', obs.inputHandler, true);
-                }
-                
-                if (obs.mutationObserver) {
-                    obs.mutationObserver.disconnect();
-                }
-                
-                delete window.__chatguardSendObserver;
-            }
-            
-            if (window.__chatguardColorObserver) {
-                window.__chatguardColorObserver.disconnect();
-                delete window.__chatguardColorObserver;
-            }
-            
-            if (window._chatguard_observers) {
-                Object.keys(window._chatguard_observers).forEach(function(key) {
-                    var obs = window._chatguard_observers[key];
-                    if (obs && obs.disconnect) {
-                        obs.disconnect();
-                    }
-                });
-                delete window._chatguard_observers;
-            }
-            
-            var sendBtn = document.querySelector('${strategy.getSelectorConfig().sendButtonSelector}');
-            if (sendBtn) {
-                if (sendBtn.__chatguardSendHandler) {
-                    sendBtn.removeEventListener('click', sendBtn.__chatguardSendHandler, true);
-                    sendBtn.removeEventListener('mousedown', sendBtn.__chatguardSendHandler, true);
-                    delete sendBtn.__chatguardSendHandler;
-                }
-                delete sendBtn.__chatguardAttached;
-                delete sendBtn.__chatguardIsSending;
-            }
-            
-            var buttons = document.querySelectorAll('.$BUTTON_CLASS');
-            buttons.forEach(function(btn) {
-                if (btn.__chatguardClickHandler) {
-                    btn.removeEventListener('click', btn.__chatguardClickHandler, true);
-                    btn.removeEventListener('touchstart', btn.__chatguardClickHandler, true);
-                    btn.removeEventListener('mousedown', btn.__chatguardClickHandler, true);
-                }
-                btn.remove();
-            });
-            
-            var infoMessages = document.querySelectorAll('.chatguard-info-message');
-            infoMessages.forEach(function(msg) {
-                msg.remove();
-            });
-            
-            return true;
-        })();
-    """.trimIndent()
-
     override suspend fun getUserInfo(): ExtractedUserInfo? {
         return executeExtraction { config, _, callbackId ->
             executeAndProcessSingleObject(
@@ -958,65 +896,102 @@ class DefaultWebContentExtractor(
 
     private fun buildSendMessageScript(message: String, config: SelectorConfig): String {
         return """
-            var inputs = document.querySelectorAll('${config.inputFieldSelector}');
-            if (inputs.length === 0) return false;
-        
-            var input = inputs[0];
-            
-            var valueSet = false;
-        
-            try {
-                var setter;
-                if (input.tagName === 'TEXTAREA') {
-                    setter = Object.getOwnPropertyDescriptor(
-                        window.HTMLTextAreaElement.prototype,
-                        'value'
-                    ).set;
-                } else {
-                    setter = Object.getOwnPropertyDescriptor(
-                        window.HTMLInputElement.prototype,
-                        'value'
-                    ).set;
-                }
-        
+        var input = document.querySelector('${config.inputFieldSelector}');
+        if (!input) return false;
+    
+        var valueSet = false;
+    
+        try {
+            var setter = null;
+            if (input.tagName === 'TEXTAREA') {
+                var desc = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value');
+                setter = desc ? desc.set : null;
+            } else if (input.tagName === 'INPUT') {
+                var desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+                setter = desc ? desc.set : null;
+            } else if (input.isContentEditable) {
+                var desc = Object.getOwnPropertyDescriptor(window.HTMLDivElement.prototype, 'textContent');
+                setter = desc ? desc.set : null;
+            }
+    
+            if (setter) {
                 setter.call(input, ${JSONObject.quote(message)});
                 valueSet = true;
-            } catch (e) { }
-        
-            if (!valueSet) {
-                if ('value' in input) {
-                    input.value = ${JSONObject.quote(message)};
-                } else {
-                    input.innerText = ${JSONObject.quote(message)};
-                }
             }
+        } catch (e) { }
+    
+        if (!valueSet) {
+            if ('value' in input) {
+                input.value = ${JSONObject.quote(message)};
+            } else if (input.isContentEditable) {
+                input.textContent = ${JSONObject.quote(message)};
+            } else {
+                input.innerText = ${JSONObject.quote(message)};
+            }
+        }
+    
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    
+        window.__chatguardIsSending = true;
         
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.dispatchEvent(new Event('change', { bubbles: true }));
+        var attempts = 0;
+        var messageSent = false;
         
-            setTimeout(function () {
-                var sendBtn = document.querySelector('${config.sendButtonSelector}');
-                if (sendBtn) {
-                    sendBtn.__chatguardIsSending = true;
-                    var clicked = sendBtn.click();
-                    
-                    if (clicked === false || clicked === undefined) {
-                        sendBtn.dispatchEvent(new MouseEvent('mousedown', {
-                            bubbles: true,
-                            cancelable: true,
-                            view: window
-                        }));
-                        sendBtn.dispatchEvent(new MouseEvent('mouseup', {
-                            bubbles: true,
-                            cancelable: true,
-                            view: window
-                        }));
-                    }
-                }
-            }, 200);
+        var checkAndClick = function() {
+            if (messageSent) return;
+            
+            var sendBtn = document.querySelector('${config.sendButtonSelector}');
+            
+            if (sendBtn && sendBtn.offsetParent !== null) {
+                messageSent = true;
+                
+                ${generateClickEvents(config.submitSendClick)}
+                
+                setTimeout(function() {
+                    window.__chatguardIsSending = false;
+                }, 1000);
+            } else if (attempts < 10) {
+                attempts++;
+                setTimeout(checkAndClick, 100);
+            } else {
+                window.__chatguardIsSending = false;
+            }
+        };
         
-            return true;
+        setTimeout(checkAndClick, 200);
+    
+        return true;
     """.trimIndent()
+    }
+
+    private fun generateClickEvents(submitType: String?): String {
+        return when (submitType) {
+            "click" -> "sendBtn.click();"
+            "mousedown" -> "sendBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));"
+            "mouseup" -> "sendBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));"
+            "all" -> """
+                sendBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+                sendBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+                sendBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+                sendBtn.click();
+            """.trimIndent()
+
+            else -> """
+                sendBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+                sendBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+                sendBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+                sendBtn.click();
+            """.trimIndent()
+        }
+    }
+
+    private fun getObserverEventType(submitType: String?): String {
+        return when (submitType) {
+            "mousedown" -> "mousedown"
+            "mouseup" -> "mouseup"
+            else -> "click"
+        }
     }
 
     private fun buildObserveSendActionScript(
@@ -1025,71 +1000,156 @@ class DefaultWebContentExtractor(
     ) = """
         (function() {
             var input = document.querySelector('${config.inputFieldSelector}');
-            if (!input) {
-                console.error('[ChatGuard] Input field not found');
-                return false;
+            if (!input) return false;
+            
+            if (window.__chatguardSendObserver) {
+                window.__chatguardSendObserver.disconnect();
+                delete window.__chatguardSendObserver;
             }
             
-            var sendBtn = document.querySelector('${config.sendButtonSelector}');
-            if (!sendBtn) {
-                console.error('[ChatGuard] Send button not found');
-                return false;
-            }
+            var eventType = '${getObserverEventType(config.submitSendClick)}';
+            var eventTypes = ['click', 'mousedown', 'mouseup'];
             
-            if (sendBtn.__chatguardSendObserverAttached) {
-                console.log('[ChatGuard] Observer already attached');
-                return true;
-            }
+            var buttons = document.querySelectorAll('${config.sendButtonSelector}');
+            buttons.forEach(function(btn) {
+                if (btn.__chatguardSendHandler) {
+                    eventTypes.forEach(function(type) {
+                        btn.removeEventListener(type, btn.__chatguardSendHandler, true);
+                    });
+                    delete btn.__chatguardSendHandler;
+                }
+            });
             
-            sendBtn.__chatguardSendObserverAttached = true;
+            window.__chatguardIsSending = false;
             
-            sendBtn.__chatguardSendHandler = function(event) {
-                if (sendBtn.__chatguardIsSending) {
-                    console.log('[ChatGuard] Ignoring programmatic send');
-                    sendBtn.__chatguardIsSending = false;
-                    return;
+            function attachListener(btn) {
+                if (btn.__chatguardSendHandler) {
+                    eventTypes.forEach(function(type) {
+                        btn.removeEventListener(type, btn.__chatguardSendHandler, true);
+                    });
+                    delete btn.__chatguardSendHandler;
                 }
                 
-                event.stopImmediatePropagation();
-                event.preventDefault();
+                btn.__chatguardSendHandler = function(event) {
+                    if (window.__chatguardIsSending) {
+                        window.__chatguardIsSending = false;
+                        return;
+                    }
+                    
+                    event.stopImmediatePropagation();
+                    event.preventDefault();
+                    
+                    var messageText = input.value || input.textContent || input.innerText || '';
+                    if (messageText && messageText.trim()) {
+                        $BRIDGE_NAME.onContentExtracted('$callbackId', messageText.trim());
+                    }
+                };
                 
-                var messageText = input.value || input.innerText || input.textContent || '';
-                
-                if (messageText && messageText.trim()) {
-                    console.log('[ChatGuard] Sending message:', messageText.substring(0, 50));
-                    $BRIDGE_NAME.onContentExtracted('$callbackId', messageText.trim());
-                } else {
-                    console.warn('[ChatGuard] Empty message, ignoring');
+                btn.addEventListener(eventType, btn.__chatguardSendHandler, true);
+            }
+            
+            var existingBtn = document.querySelector('${config.sendButtonSelector}');
+            if (existingBtn) attachListener(existingBtn);
+            
+            var observer = new MutationObserver(function() {
+                var btn = document.querySelector('${config.sendButtonSelector}');
+                if (btn && !btn.__chatguardSendHandler) {
+                    attachListener(btn);
                 }
-            };
+            });
             
-            sendBtn.addEventListener('click', sendBtn.__chatguardSendHandler, true);
+            observer.observe(document.body, { 
+                childList: true, 
+                subtree: true, 
+                attributes: true, 
+                attributeFilter: ['class', 'style', 'disabled'] 
+            });
             
-            console.log('[ChatGuard] Send observer attached successfully');
+            window.__chatguardSendObserver = observer;
+            
             return true;
         })();
     """.trimIndent()
 
     private fun buildRemoveSendActionObserverScript(config: SelectorConfig) = """
         (function() {
-            var sendBtn = document.querySelector('${config.sendButtonSelector}');
-            if (!sendBtn) {
-                console.warn('[ChatGuard] Send button not found for removal');
-                return false;
-            }
-    
-            if (sendBtn.__chatguardSendHandler) {
-                sendBtn.removeEventListener('click', sendBtn.__chatguardSendHandler, true);
-                sendBtn.__chatguardSendHandler = null;
-                sendBtn.__chatguardSendObserverAttached = false;
-                console.log('[ChatGuard] Send observer removed');
-                return true;
+            if (window.__chatguardSendObserver) {
+                window.__chatguardSendObserver.disconnect();
+                delete window.__chatguardSendObserver;
             }
             
-            console.warn('[ChatGuard] No handler to remove');
-            return false;
+            var eventTypes = ['click', 'mousedown', 'mouseup'];
+            var buttons = document.querySelectorAll('${config.sendButtonSelector}');
+            
+            buttons.forEach(function(btn) {
+                if (btn.__chatguardSendHandler) {
+                    eventTypes.forEach(function(eventType) {
+                        btn.removeEventListener(eventType, btn.__chatguardSendHandler, true);
+                    });
+                    delete btn.__chatguardSendHandler;
+                }
+            });
+            
+            delete window.__chatguardIsSending;
+            
+            return true;
         })();
     """.trimIndent()
+
+    private fun buildClearAllFlagsScript() = """
+        (function() {
+            if (window.__chatguardSendObserver) {
+                window.__chatguardSendObserver.disconnect();
+                delete window.__chatguardSendObserver;
+            }
+            
+            if (window.__chatguardColorObserver) {
+                window.__chatguardColorObserver.disconnect();
+                delete window.__chatguardColorObserver;
+            }
+            
+            if (window._chatguard_observers) {
+                Object.keys(window._chatguard_observers).forEach(function(key) {
+                    var obs = window._chatguard_observers[key];
+                    if (obs && obs.disconnect) {
+                        obs.disconnect();
+                    }
+                });
+                delete window._chatguard_observers;
+            }
+            
+            var eventTypes = ['click', 'mousedown', 'mouseup'];
+            var buttons = document.querySelectorAll('${strategy.getSelectorConfig().sendButtonSelector}');
+            buttons.forEach(function(btn) {
+                eventTypes.forEach(function(eventType) {
+                    if (btn.__chatguardSendHandler) {
+                        btn.removeEventListener(eventType, btn.__chatguardSendHandler, true);
+                    }
+                });
+                delete btn.__chatguardSendHandler;
+            });
+            
+            var customButtons = document.querySelectorAll('.$BUTTON_CLASS');
+            customButtons.forEach(function(btn) {
+                if (btn.__chatguardClickHandler) {
+                    btn.removeEventListener('click', btn.__chatguardClickHandler, true);
+                    btn.removeEventListener('touchstart', btn.__chatguardClickHandler, true);
+                    btn.removeEventListener('mousedown', btn.__chatguardClickHandler, true);
+                    delete btn.__chatguardClickHandler;
+                }
+                btn.remove();
+            });
+            
+            var infoMessages = document.querySelectorAll('.chatguard-info-message');
+            infoMessages.forEach(function(msg) {
+                msg.remove();
+            });
+            
+            delete window.__chatguardIsSending;
+            
+            return true;
+        })();
+""".trimIndent()
 
     private fun buildExtractionScript(config: SelectorConfig, callbackId: String) =
         buildBaseScript(config, callbackId, includeDetailedAttrs = false)

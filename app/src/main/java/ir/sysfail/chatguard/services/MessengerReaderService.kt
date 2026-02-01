@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
-import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import androidx.core.app.NotificationCompat
 import ir.sysfail.chatguard.core.floating_button.FloatingButtonController
@@ -54,7 +53,6 @@ class MessengerReaderService : AccessibilityService() {
             messengerAccessibilityStateManager.state
                 .collectLatest { state ->
                     floatingButtonController.setButtonColor(state.windowType.color)
-                    Log.d("Sssadsadd", "observeToState: ${state.windowType}")
                     if (state.windowType == WindowType.NON_MESSENGER) {
                         floatingButtonController.hide()
                     } else floatingButtonController.show()
@@ -148,7 +146,7 @@ class MessengerReaderService : AccessibilityService() {
             startForeground(
                 NOTIFICATION_ID,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
             )
         } else {
             startForeground(NOTIFICATION_ID, notification)

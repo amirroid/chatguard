@@ -17,6 +17,7 @@ class BaleExtractionStrategy : PlatformExtractionStrategy {
         ),
         attributesToExtract = listOf(MESSAGE_ID_DATA),
         sendButtonSelector = ".FRqrfO.RaTWwR",
+        submitSendClick = "click",
         inputFieldSelector = "#main-message-input",
         messageMetaSelector = ".time",
         backgroundColorVariable = "--color-neutrals-n-00",

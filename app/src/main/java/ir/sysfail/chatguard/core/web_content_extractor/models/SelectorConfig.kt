@@ -13,6 +13,7 @@ data class SelectorConfig(
     val attributesToExtract: List<String> = emptyList(),
     val messageIdData: String = "",
     val sendButtonSelector: String = "",
+    val submitSendClick: String = "",
     val inputFieldSelector: String = "",
     val beforeSendPublicKeySelector: String = "",
     val backgroundColorVariable: String,
