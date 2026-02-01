@@ -24,7 +24,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import org.koin.android.ext.android.get
 import org.koin.android.ext.android.getKoin
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.GlobalContext.startKoin
@@ -45,7 +44,7 @@ class ChatGuardApp : Application() {
                 )
             )
 
-//        setupGlobalExceptionHandler()
+        setupGlobalExceptionHandler()
 
         startKoin {
             androidContext(this@ChatGuardApp)

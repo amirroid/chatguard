@@ -37,7 +37,6 @@ import ir.sysfail.chatguard.core.web_content_extractor.models.InfoMessage
 import ir.sysfail.chatguard.core.web_content_extractor.models.InjectedButton
 import ir.sysfail.chatguard.ui.components.webview.WebView
 import ir.sysfail.chatguard.ui.components.webview.rememberWebViewState
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.getKoin
@@ -74,11 +73,12 @@ fun WebFrameScreen(
                 webContentExtractor.setButtonClickListener(viewModel::handleButtonClick)
             },
             onNewPageLoaded = {
+                viewModel.onPageLoaded()
                 scope.launch {
                     webContentExtractor.clearAllFlags()
+                    webContentExtractor.removeMessagesObserver()
 
                     webContentExtractor.observeBackgroundColor(viewModel::updateBackgroundColor)
-                    viewModel.onPageLoaded()
 
                     if (!webContentExtractor.isChatPage()) {
                         return@launch
@@ -152,55 +152,51 @@ fun WebFrameScreen(
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
-            Log.d("WebFrameEvent", "Received event: ${event::class.simpleName}")
-            when (event) {
-                is WebFrameEvent.ShowInfoMessage -> {
-                    webContentExtractor.injectInfoMessage(
-                        InfoMessage(
-                            text = event.message,
-                            type = event.type
+            scope.launch {
+                when (event) {
+                    is WebFrameEvent.ShowInfoMessage -> {
+                        webContentExtractor.injectInfoMessage(
+                            InfoMessage(
+                                text = event.message,
+                                type = event.type
+                            )
                         )
-                    )
-                }
-
-                is WebFrameEvent.ShowInfoMessageResource -> {
-                    webContentExtractor.injectInfoMessage(
-                        InfoMessage(
-                            text = context.getString(event.message),
-                            type = event.type
-                        )
-                    )
-                }
-
-                is WebFrameEvent.ClearInfoMessage -> webContentExtractor.removeInjectedInfoMessage()
-
-                is WebFrameEvent.InjectButton -> {
-                    webContentExtractor.injectButton(
-                        event.messageId, button = InjectedButton(
-                            id = event.buttonId,
-                            text = context.getString(event.text),
-                            buttonType = event.buttonType
-                        )
-                    )
-                }
-
-                is WebFrameEvent.SendMessage -> {
-                    try {
-                        webContentExtractor.sendMessage(event.message)
-                        Log.d("WebFrameEvent", "sendMessage called successfully")
-                    } catch (e: Exception) {
-                        Log.e("WebFrameEvent", "sendMessage FAILED: ${e.message}", e)
                     }
-                }
 
-                is WebFrameEvent.UpdateMessageText -> {
-                    webContentExtractor.updateMessageText(
-                        event.messageId,
-                        event.newText
-                    )
-                }
+                    is WebFrameEvent.ShowInfoMessageResource -> {
+                        webContentExtractor.injectInfoMessage(
+                            InfoMessage(
+                                text = context.getString(event.message),
+                                type = event.type
+                            )
+                        )
+                    }
 
-                is WebFrameEvent.RefreshWebView -> webViewState.reload()
+                    is WebFrameEvent.ClearInfoMessage -> webContentExtractor.removeInjectedInfoMessage()
+
+                    is WebFrameEvent.InjectButton -> {
+                        webContentExtractor.injectButton(
+                            event.messageId, button = InjectedButton(
+                                id = event.buttonId,
+                                text = context.getString(event.text),
+                                buttonType = event.buttonType
+                            )
+                        )
+                    }
+
+                    is WebFrameEvent.SendMessage -> {
+                        webContentExtractor.sendMessage(event.message)
+                    }
+
+                    is WebFrameEvent.UpdateMessageText -> {
+                        webContentExtractor.updateMessageText(
+                            event.messageId,
+                            event.newText
+                        )
+                    }
+
+                    is WebFrameEvent.RefreshWebView -> webViewState.reload()
+                }
             }
         }
     }

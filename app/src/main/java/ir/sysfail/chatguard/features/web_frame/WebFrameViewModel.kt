@@ -21,11 +21,8 @@ import ir.sysfail.chatguard.domain.usecase.steganography_crypto.PoeticMessageDec
 import ir.sysfail.chatguard.domain.usecase.steganography_crypto.PoeticMessageEncryptionUseCase
 import ir.sysfail.chatguard.domain.usecase.steganography_crypto.VerifyPoeticPublicKeyUseCase
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -52,9 +49,7 @@ class WebFrameViewModel(
     private val processedMessageIds = ConcurrentHashMap.newKeySet<String>()
     private val taskResults = ConcurrentHashMap<String, TaskResult>()
 
-    private val _events = Channel<WebFrameEvent>(
-        capacity = Channel.BUFFERED
-    )
+    private val _events = Channel<WebFrameEvent>(capacity = Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     private var currentUsername: String? = null
@@ -105,7 +100,13 @@ class WebFrameViewModel(
                     val existingResult = taskResults[id]
 
                     if (existingResult != null) {
-                        if (existingResult.loadIndex != loadsCount) {
+                        val contentChanged =
+                            message.message == existingResult.realMessage && message.message != existingResult.updatedMessage
+
+                        if (contentChanged) {
+                            processedMessageIds.remove(id)
+                            taskQueue.send(MessageTask(message))
+                        } else if (existingResult.loadIndex != loadsCount) {
                             taskResults[id] = existingResult.copy(loadIndex = loadsCount)
                             emitResultEvents(id, existingResult)
                         }
@@ -160,12 +161,8 @@ class WebFrameViewModel(
     }
 
     fun sendPoeticPublicKey() = viewModelScope.launch(Dispatchers.IO) {
-        Log.d("sadsadsadasdsadsa", "sendPoeticPublicKey:")
         getPoeticSignedPublicKeyUseCase.invoke().onSuccess {
-            Log.d("sadsadsadasdsadsa", "sendPoeticPublicKey: $it")
             _events.send(WebFrameEvent.SendMessage(it))
-        }.onFailure {
-            Log.e("sadsadsadasdsadsa", "sendPoeticPublicKey: ${it.message}", it)
         }
     }
 
@@ -180,14 +177,10 @@ class WebFrameViewModel(
     }
 
     fun handleSendMessage(message: String) = viewModelScope.launch(Dispatchers.IO) {
-        Log.d("sadsadsadasdsadsa", "handleSendMessage: $message")
         _userPublicKey.filterNotNull().firstOrNull()?.onSuccess { key ->
             encryptionUseCase(message, key)
                 .onSuccess { encryptedMessage ->
-                    Log.d("sadsadsadasdsadsa", "handleSendMessage: $encryptedMessage")
                     _events.send(WebFrameEvent.SendMessage(encryptedMessage))
-                }.onFailure {
-                    Log.e("sadsadsadasdsadsa", "handleSendMessage: ${it.message}", it)
                 }
         }?.onFailure {
             _events.send(WebFrameEvent.SendMessage(message))

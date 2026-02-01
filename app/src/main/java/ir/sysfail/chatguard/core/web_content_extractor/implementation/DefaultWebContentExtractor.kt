@@ -209,7 +209,6 @@ class DefaultWebContentExtractor(
 
     override fun observeMessages(onMessagesChanged: (List<ElementData>) -> Unit) {
         val webView = webView ?: return
-        removeMessagesObserver()
 
         executeExtraction { config, processing, callbackId ->
             observers[callbackId] = true
@@ -716,47 +715,46 @@ class DefaultWebContentExtractor(
         newText: String,
         config: SelectorConfig
     ): String {
-        val messageIdAttribute = config.messageIdData
+        val escapedMessageId = JSONObject.quote(messageId)
+        val escapedAttribute = JSONObject.quote(config.messageIdData)
+        val escapedText = JSONObject.quote(newText)
+        val escapedParentSelector = JSONObject.quote(config.messageParentSelector)
+        val escapedMessageSelector = JSONObject.quote(config.messageSelector)
 
         return """
-        var messageId = '$messageId';
-        var messageIdAttr = ${JSONObject.quote(messageIdAttribute)};
-        var newText = ${JSONObject.quote(newText)};
-        
-        var messageParent = document.querySelector(
-            '${config.messageParentSelector}[' + messageIdAttr + '="' + messageId + '"]'
-        );
-        
-        if (!messageParent) {
-            console.error('Message not found with ID:', messageId);
-            return false;
-        }
-        
-        var allMessageElements = messageParent.querySelectorAll('${config.messageSelector}');
-        
-        if (allMessageElements.length === 0) {
-            console.error('No message text elements found');
-            return false;
-        }
-        
-        for (var i = 1; i < allMessageElements.length; i++) {
-            allMessageElements[i].remove();
-        }
-        
-        var firstMessage = allMessageElements[0];
-        
-        if ('value' in firstMessage) {
-            firstMessage.value = newText;
-        } else if ('innerText' in firstMessage) {
-            firstMessage.innerText = newText;
-        } else {
-            firstMessage.textContent = newText;
-        }
-        
-        firstMessage.dispatchEvent(new Event('input', { bubbles: true }));
-        firstMessage.dispatchEvent(new Event('change', { bubbles: true }));
-        
-        return true;
+            const messageId = $escapedMessageId;
+            const messageIdAttr = $escapedAttribute;
+            const newText = $escapedText;
+            const parentSelector = $escapedParentSelector;
+            const messageSelector = $escapedMessageSelector;
+            
+            const messageParent = document.querySelector(
+                `${'$'}{parentSelector}[${'$'}{messageIdAttr}="${'$'}{messageId}"]`
+            );
+            
+            if (!messageParent) return false;
+            
+            const messageElements = messageParent.querySelectorAll(messageSelector);
+            
+            if (messageElements.length === 0) return false;
+            
+            for (let i = messageElements.length - 1; i > 0; i--) {
+                messageElements[i].remove();
+            }
+            
+            const firstElement = messageElements[0];
+            
+            if (firstElement instanceof HTMLInputElement || 
+                firstElement instanceof HTMLTextAreaElement) {
+                firstElement.value = newText;
+            } else {
+                firstElement.textContent = newText;
+            }
+            
+            firstElement.dispatchEvent(new Event('input', { bubbles: true }));
+            firstElement.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            return true;
     """.trimIndent()
     }
 
