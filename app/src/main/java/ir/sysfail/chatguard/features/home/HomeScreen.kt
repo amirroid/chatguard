@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
-import androidx.compose.material.icons.rounded.ArrowForwardIos
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -57,6 +56,10 @@ import ir.sysfail.chatguard.ui.components.TransparentListItem
 import ir.sysfail.chatguard.utils.Constants
 import org.koin.compose.viewmodel.koinViewModel
 
+// ============================================================================
+// Data Models
+// ============================================================================
+
 @Immutable
 data class MessengerItem(
     @field:StringRes val name: Int,
@@ -64,7 +67,11 @@ data class MessengerItem(
     val platform: MessengerPlatform
 )
 
-val messengerItems = listOf(
+// ============================================================================
+// Constants
+// ============================================================================
+
+private val messengerItems = listOf(
     MessengerItem(
         name = R.string.eitaa,
         description = R.string.click_to_enter,
@@ -79,13 +86,16 @@ val messengerItems = listOf(
         name = R.string.bale,
         description = R.string.click_to_enter,
         platform = MessengerPlatform.BALE
-
     ),
 )
 
-val accessibilityPermissionItem = AccessibilityPermissionItem()
-val overlayPermissionItem = OverlayPermissionItem()
-val notificationsPermissionItem = NotificationsPermissionItem()
+private val accessibilityPermissionItem = AccessibilityPermissionItem()
+private val overlayPermissionItem = OverlayPermissionItem()
+private val notificationsPermissionItem = NotificationsPermissionItem()
+
+// ============================================================================
+// Main Screen
+// ============================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,12 +105,19 @@ fun HomeScreen(
     onGoToGuides: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
+    val context = LocalContext.current
+
+    // State
+    var isAccessibilityItemExpanded by rememberSaveable { mutableStateOf(true) }
+    var isSettingsItemExpanded by rememberSaveable { mutableStateOf(false) }
+    var isExitKeysWarningDialog by rememberSaveable { mutableStateOf(false) }
+
+    // Permissions
     val permissionsState = rememberPermissionState(
         permissions = remember {
             buildList {
                 add(accessibilityPermissionItem)
                 add(overlayPermissionItem)
-
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     add(notificationsPermissionItem)
                 }
@@ -108,161 +125,314 @@ fun HomeScreen(
         }
     )
 
-    val context = LocalContext.current
-
+    // File launcher
     val createFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri ->
         uri?.let { requiredUri ->
-            viewModel.saveKeys(requiredUri, onSuccess = {
-                Toast.makeText(context, R.string.save_successfully, Toast.LENGTH_SHORT).show()
-            })
+            viewModel.saveKeys(
+                uri = requiredUri,
+                onSuccess = {
+                    Toast.makeText(
+                        context,
+                        R.string.save_successfully,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            )
         }
     }
 
-
-    var isAccessibilityItemExpanded by rememberSaveable { mutableStateOf(true) }
-    var isSettingsItemExpanded by rememberSaveable { mutableStateOf(false) }
-    var isExitKeysWarningDialog by rememberSaveable { mutableStateOf(false) }
-
+    // UI
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(
-            bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            bottom = 24.dp + WindowInsets.navigationBars
+                .asPaddingValues()
+                .calculateBottomPadding()
         )
     ) {
-        item("header") {
+        item(key = "header") {
             CenterAlignedTopAppBar(
                 title = {
                     Text(stringResource(R.string.app_name_persian))
-                },
+                }
             )
         }
-        items(messengerItems, key = { it.name }) { messengerItem ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                onClick = {
-                    onGoToWebFrame.invoke(messengerItem.platform)
-                }
-            ) {
-                TransparentListItem(
-                    headlineContent = {
-                        Text(stringResource(messengerItem.name), fontWeight = FontWeight.Bold)
-                    },
-                    supportingContent = {
-                        Text(
-                            stringResource(messengerItem.description),
-                            modifier = Modifier.alpha(.7f)
-                        )
-                    }
-                )
-            }
+
+        items(
+            items = messengerItems,
+            key = { it.name }
+        ) { messengerItem ->
+            MessengerCard(
+                messengerItem = messengerItem,
+                onClick = { onGoToWebFrame(messengerItem.platform) }
+            )
         }
-        item("accessibility_service") {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                TransparentListItem(
-                    headlineContent = {
-                        Text(stringResource(R.string.use_application), fontWeight = FontWeight.Bold)
-                    },
-                    supportingContent = {
-                        Text(
-                            stringResource(R.string.use_application_description),
-                            modifier = Modifier.alpha(.7f)
-                        )
-                    },
-                    trailingContent = {
-                        ExpandIconButton(
-                            isAccessibilityItemExpanded,
-                            onClick = { isAccessibilityItemExpanded = !isAccessibilityItemExpanded }
-                        )
-                    }
-                )
-                AnimatedVisibility(isAccessibilityItemExpanded) {
-                    AccessibilityOptionMenu(permissionsState = permissionsState)
-                }
-            }
+
+        item(key = "accessibility_service") {
+            AccessibilityServiceCard(
+                isExpanded = isAccessibilityItemExpanded,
+                onExpandToggle = { isAccessibilityItemExpanded = !isAccessibilityItemExpanded },
+                permissionsState = permissionsState
+            )
         }
-        item("settings") {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                TransparentListItem(
-                    headlineContent = {
-                        Text(stringResource(R.string.settings), fontWeight = FontWeight.Bold)
-                    },
-                    trailingContent = {
-                        ExpandIconButton(
-                            isSettingsItemExpanded,
-                            onClick = { isSettingsItemExpanded = !isSettingsItemExpanded }
-                        )
-                    }
-                )
-                AnimatedVisibility(isSettingsItemExpanded) {
-                    Column {
-                        TransparentListItem(
-                            headlineContent = {
-                                Text(stringResource(R.string.export_keys))
-                            },
-                            modifier = Modifier.clickable {
-                                createFileLauncher.launch("identity_keys_backup.${Constants.KEYS_EXTENSION}")
-                            }
-                        )
-                        TransparentListItem(
-                            headlineContent = {
-                                Text(stringResource(R.string.exit_current_keys))
-                            },
-                            modifier = Modifier.clickable {
-                                isExitKeysWarningDialog = true
-                            }
-                        )
-                        TransparentListItem(
-                            headlineContent = {
-                                Text(stringResource(R.string.guides))
-                            },
-                            trailingContent = {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            },
-                            modifier = Modifier.clickable {
-                                onGoToGuides.invoke()
-                            }
-                        )
-                    }
-                }
-            }
+
+        item(key = "settings") {
+            SettingsCard(
+                isExpanded = isSettingsItemExpanded,
+                onExpandToggle = { isSettingsItemExpanded = !isSettingsItemExpanded },
+                onExportKeys = {
+                    createFileLauncher.launch("identity_keys_backup.${Constants.KEYS_EXTENSION}")
+                },
+                onExitKeys = { isExitKeysWarningDialog = true },
+                onGoToGuides = onGoToGuides
+            )
         }
     }
 
+    // Dialog
     if (isExitKeysWarningDialog) {
         ExitKeysWarningDialog(
             onConfirmExit = {
                 viewModel.clearCurrentKeys {
-                    onGoToIntro.invoke()
+                    onGoToIntro()
                     isExitKeysWarningDialog = false
                 }
             },
-            onDismiss = {
-                isExitKeysWarningDialog = false
+            onDismiss = { isExitKeysWarningDialog = false }
+        )
+    }
+}
+
+// ============================================================================
+// Composable Components
+// ============================================================================
+
+@Composable
+private fun MessengerCard(
+    messengerItem: MessengerItem,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        onClick = onClick
+    ) {
+        TransparentListItem(
+            headlineContent = {
+                Text(
+                    text = stringResource(messengerItem.name),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            supportingContent = {
+                Text(
+                    text = stringResource(messengerItem.description),
+                    modifier = Modifier.alpha(0.7f)
+                )
             }
         )
-
     }
 }
 
 @Composable
-fun ExitKeysWarningDialog(
+private fun AccessibilityServiceCard(
+    isExpanded: Boolean,
+    onExpandToggle: () -> Unit,
+    permissionsState: PermissionState
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        TransparentListItem(
+            headlineContent = {
+                Text(
+                    text = stringResource(R.string.use_application),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            supportingContent = {
+                Text(
+                    text = stringResource(R.string.use_application_description),
+                    modifier = Modifier.alpha(0.7f)
+                )
+            },
+            trailingContent = {
+                ExpandIconButton(
+                    expanded = isExpanded,
+                    onClick = onExpandToggle
+                )
+            }
+        )
+
+        AnimatedVisibility(visible = isExpanded) {
+            AccessibilityOptionMenu(permissionsState = permissionsState)
+        }
+    }
+}
+
+@Composable
+private fun SettingsCard(
+    isExpanded: Boolean,
+    onExpandToggle: () -> Unit,
+    onExportKeys: () -> Unit,
+    onExitKeys: () -> Unit,
+    onGoToGuides: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        TransparentListItem(
+            headlineContent = {
+                Text(
+                    text = stringResource(R.string.settings),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            trailingContent = {
+                ExpandIconButton(
+                    expanded = isExpanded,
+                    onClick = onExpandToggle
+                )
+            }
+        )
+
+        AnimatedVisibility(visible = isExpanded) {
+            Column {
+                TransparentListItem(
+                    headlineContent = {
+                        Text(stringResource(R.string.export_keys))
+                    },
+                    modifier = Modifier.clickable(onClick = onExportKeys)
+                )
+
+                TransparentListItem(
+                    headlineContent = {
+                        Text(stringResource(R.string.exit_current_keys))
+                    },
+                    modifier = Modifier.clickable(onClick = onExitKeys)
+                )
+
+                TransparentListItem(
+                    headlineContent = {
+                        Text(stringResource(R.string.guides))
+                    },
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .padding(end = 16.dp)
+                                .size(16.dp)
+                        )
+                    },
+                    modifier = Modifier.clickable(onClick = onGoToGuides)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccessibilityOptionMenu(
+    permissionsState: PermissionState
+) {
+    val isNotificationsGranted = permissionsState
+        .permissionsGranted[notificationsPermissionItem.name] ?: true
+    val isOverlayGranted = permissionsState
+        .permissionsGranted[overlayPermissionItem.name] == true
+    val isAccessibilityGranted = permissionsState
+        .permissionsGranted[accessibilityPermissionItem.name] == true
+
+    Column {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            DisplayPermissionItem(
+                name = stringResource(R.string.notification_permission),
+                description = stringResource(R.string.notification_permission_description),
+                isPermissionGranted = isNotificationsGranted,
+                onRequestPermission = {
+                    permissionsState.requestAccess(notificationsPermissionItem.name)
+                }
+            )
+        }
+
+        DisplayPermissionItem(
+            name = stringResource(R.string.overlay_permission),
+            description = stringResource(R.string.overlay_permission_description),
+            isPermissionGranted = isOverlayGranted,
+            onRequestPermission = {
+                permissionsState.requestAccess(overlayPermissionItem.name)
+            }
+        )
+
+        DisplayPermissionItem(
+            name = stringResource(R.string.accessibility_permission),
+            description = stringResource(R.string.accessibility_permission_description),
+            isPermissionGranted = isAccessibilityGranted,
+            requestPermissionEnabled = isOverlayGranted && isNotificationsGranted,
+            onRequestPermission = {
+                permissionsState.requestAccess(accessibilityPermissionItem.name)
+            }
+        )
+    }
+}
+
+@Composable
+private fun DisplayPermissionItem(
+    name: String,
+    description: String,
+    isPermissionGranted: Boolean,
+    requestPermissionEnabled: Boolean = true,
+    onRequestPermission: () -> Unit
+) {
+    TransparentListItem(
+        headlineContent = {
+            Text(name)
+        },
+        overlineContent = {
+            AnimatedContent(
+                targetState = isPermissionGranted,
+                label = "permission_status"
+            ) { granted ->
+                if (granted) {
+                    Text(
+                        text = stringResource(R.string.permission_accepted),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.required_permission),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        supportingContent = {
+            Text(
+                text = description,
+                modifier = Modifier.alpha(0.7f)
+            )
+        },
+        trailingContent = {
+            Button(
+                onClick = onRequestPermission,
+                enabled = !isPermissionGranted && requestPermissionEnabled
+            ) {
+                Text(stringResource(R.string.access_permission))
+            }
+        }
+    )
+}
+
+@Composable
+private fun ExitKeysWarningDialog(
     onConfirmExit: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -275,98 +445,13 @@ fun ExitKeysWarningDialog(
             Text(text = stringResource(R.string.exit_keys_warning))
         },
         confirmButton = {
-            TextButton(
-                onClick = onConfirmExit
-            ) {
+            TextButton(onClick = onConfirmExit) {
                 Text(text = stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            Button(
-                onClick = onDismiss
-            ) {
+            Button(onClick = onDismiss) {
                 Text(text = stringResource(R.string.cancel))
-            }
-        }
-    )
-}
-
-
-@Composable
-fun AccessibilityOptionMenu(permissionsState: PermissionState) {
-    Column(
-        modifier = Modifier
-    ) {
-        val isNotificationsGranted =
-            permissionsState.permissionsGranted[notificationsPermissionItem.name] ?: true
-        val isOverlayGranted =
-            permissionsState.permissionsGranted[overlayPermissionItem.name] == true
-        val isAccessibilityGranted =
-            permissionsState.permissionsGranted[accessibilityPermissionItem.name] == true
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            DisplayPermissionItem(
-                name = stringResource(R.string.notification_permission),
-                description = stringResource(R.string.notification_permission_description),
-                isPermissionGranted = isNotificationsGranted,
-                onRequestPermission = { permissionsState.requestAccess(notificationsPermissionItem.name) }
-            )
-        }
-        DisplayPermissionItem(
-            name = stringResource(R.string.overlay_permission),
-            description = stringResource(R.string.overlay_permission_description),
-            isPermissionGranted = isOverlayGranted,
-            onRequestPermission = { permissionsState.requestAccess(overlayPermissionItem.name) }
-        )
-        DisplayPermissionItem(
-            name = stringResource(R.string.accessibility_permission),
-            description = stringResource(R.string.accessibility_permission_description),
-            isPermissionGranted = isAccessibilityGranted,
-            requestPermissionEnabled = isOverlayGranted && isNotificationsGranted,
-            onRequestPermission = { permissionsState.requestAccess(accessibilityPermissionItem.name) }
-        )
-    }
-}
-
-@Composable
-fun DisplayPermissionItem(
-    name: String,
-    description: String,
-    isPermissionGranted: Boolean,
-    requestPermissionEnabled: Boolean = true,
-    onRequestPermission: () -> Unit
-) {
-    TransparentListItem(
-        headlineContent = {
-            Text(name)
-        },
-        overlineContent = {
-            AnimatedContent(isPermissionGranted) { granted ->
-                if (granted) {
-                    Text(
-                        stringResource(R.string.permission_accepted),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    Text(
-                        stringResource(R.string.required_permission),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-        },
-        supportingContent = {
-            Text(
-                text = description,
-                modifier = Modifier.alpha(.7f)
-            )
-        },
-        trailingContent = {
-            Button(
-                onClick = onRequestPermission,
-                enabled = !isPermissionGranted && requestPermissionEnabled
-            ) {
-                Text(stringResource(R.string.access_permission))
             }
         }
     )

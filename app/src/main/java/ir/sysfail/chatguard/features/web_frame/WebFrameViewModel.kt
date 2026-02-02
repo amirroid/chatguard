@@ -1,7 +1,7 @@
 package ir.sysfail.chatguard.features.web_frame
 
-import android.util.Log
 import androidx.compose.ui.graphics.Color
+import androidx.core.graphics.toColorInt
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -31,7 +31,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
-import androidx.core.graphics.toColorInt
 
 class WebFrameViewModel(
     private val getPublicKeyUseCase: GetPublicKeyUseCase,
@@ -50,6 +49,7 @@ class WebFrameViewModel(
     private val processedMessageIds = ConcurrentHashMap.newKeySet<String>()
     private val taskResults = ConcurrentHashMap<String, TaskResult>()
     private val messageContentToId = ConcurrentHashMap<String, String>()
+    private val messageToUsername = ConcurrentHashMap<String, String>()
 
     private val _events = Channel<WebFrameEvent>(capacity = Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -100,9 +100,6 @@ class WebFrameViewModel(
     }
 
     fun onNewMessagesDetected(messages: List<ExtractedElementMessage>) {
-        Log.d(
-            "sdsadsadsa", "onNewMessagesDetected: ${messages.joinToString { it.id }}"
-        )
         viewModelScope.launch {
             messages.forEach { message ->
                 handleMessageDetection(message)
@@ -114,6 +111,10 @@ class WebFrameViewModel(
         val currentId = message.id
         val messageContent = message.message
 
+        currentUsername?.let { username ->
+            messageToUsername[currentId] = username
+        }
+
         val oldId = messageContentToId[messageContent]
         val oldResult = oldId?.let { taskResults[it] }
 
@@ -121,6 +122,11 @@ class WebFrameViewModel(
             processedMessageIds.remove(oldId)
             taskResults.remove(oldId)
             messageContentToId.remove(messageContent)
+
+            currentUsername?.let { username ->
+                messageToUsername.remove(oldId)
+                messageToUsername[currentId] = username
+            }
 
             processedMessageIds.add(currentId)
             messageContentToId[messageContent] = currentId
@@ -199,12 +205,36 @@ class WebFrameViewModel(
     }
 
     private suspend fun savePublicKey(publicKey: CryptoKey) {
+        val username = currentUsername ?: return
+
         addUserPublicKeyUseCase(
             packageName = platform.packageName,
-            username = currentUsername ?: return,
+            username = username,
             key = publicKey
         ).onSuccess {
+            clearResultsForUser(username)
             _events.send(WebFrameEvent.RefreshWebView)
+        }
+    }
+
+    private fun clearResultsForUser(username: String) {
+        val messageIdsToRemove = messageToUsername
+            .filter { (_, user) -> user == username }
+            .map { (messageId, _) -> messageId }
+            .toSet()
+
+        messageIdsToRemove.forEach { messageId ->
+            val result = taskResults[messageId]
+
+            processedMessageIds.remove(messageId)
+            taskResults.remove(messageId)
+
+            result?.realMessage?.let { content ->
+                if (messageContentToId[content] == messageId) {
+                    messageContentToId.remove(content)
+                }
+            }
+            messageToUsername.remove(messageId)
         }
     }
 
@@ -235,9 +265,7 @@ class WebFrameViewModel(
     }
 
     private suspend fun processMessageTask(task: MessageTask) {
-        val isPublicKey = if (!task.data.isMyMessage) {
-            verifyPoeticPublicKeyUseCase(task.data.message)
-        } else verifyPoeticPublicKeyUseCase(task.data.message)
+        val isPublicKey = verifyPoeticPublicKeyUseCase(task.data.message)
 
         var updatedMessage: String? = null
 
@@ -268,6 +296,7 @@ class WebFrameViewModel(
         processedMessageIds.clear()
         taskResults.clear()
         messageContentToId.clear()
+        messageToUsername.clear()
         super.onCleared()
     }
 }

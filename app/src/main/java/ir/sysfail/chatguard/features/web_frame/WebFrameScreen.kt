@@ -200,7 +200,10 @@ fun WebFrameScreen(
                         )
                     }
 
-                    is WebFrameEvent.RefreshWebView -> webViewState.reload()
+                    is WebFrameEvent.RefreshWebView -> {
+                        viewModel.lastLoadedUrl = null
+                        webViewState.reload()
+                    }
                 }
             }
         }

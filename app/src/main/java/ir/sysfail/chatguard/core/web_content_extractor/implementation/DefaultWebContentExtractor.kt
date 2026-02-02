@@ -504,45 +504,37 @@ class DefaultWebContentExtractor(
     }
 
     private fun buildIsChatPageScript(config: SelectorConfig) = """
-          var timeout = 5000;
-          var resolved = false;
+        var timeout = 5000;
+        var resolved = false;
+        var startTime = Date.now();
         
-          function check() {
+        function check() {
             return !!(
-              document.querySelector('${config.chatHeader}') &&
-              document.querySelector('${config.inputFieldSelector}')
+                document.querySelector('${config.chatHeader}') &&
+                document.querySelector('${config.inputFieldSelector}')
             );
-          }
+        }
         
-          return new Promise(function (resolve) {
+        return new Promise(function(resolve) {
             if (check()) {
-              resolve(true);
-              return;
-            }
-       
-            var timer = setTimeout(function () {
-              if (resolved) return;
-              resolved = true;
-              observer.disconnect();
-              resolve(false);
-            }, timeout);
-        
-            var observer = new MutationObserver(function () {
-              if (resolved) return;
-        
-              if (check()) {
-                resolved = true;
-                clearTimeout(timer);
-                observer.disconnect();
                 resolve(true);
-              }
-            });
-        
-            observer.observe(document.body, {
-              childList: true,
-              subtree: true
-            });
-          });
+                return;
+            }
+            
+            var interval = setInterval(function() {
+                if (resolved) return;
+                
+                if (check()) {
+                    resolved = true;
+                    clearInterval(interval);
+                    resolve(true);
+                } else if (Date.now() - startTime >= timeout) {
+                    resolved = true;
+                    clearInterval(interval);
+                    resolve(false);
+                }
+            }, 100);
+        });
     """.trimIndent()
 
     private fun buildInjectInfoMessageScript(
@@ -555,34 +547,34 @@ class DefaultWebContentExtractor(
         }
 
         return """
-        var target = document.querySelector('${config.targetSelector}');
-        if (!target) return false;
-
-        var computedStyle = window.getComputedStyle(target);
-        if (computedStyle.position === 'static') {
-            target.style.position = 'relative';
-        }
-
-        var div = document.createElement('div');
-        div.className = 'chatguard-info-message';
-        div.style.cssText =
-            'position:absolute;' +
-            'top:100%;' +
-            'left:0;' +
-            'background:$bgColor;' +
-            'color:#fff;' +
-            'width:100%;' +
-            'box-sizing:border-box;' +
-            'padding:6px 8px;' +
-            'font-size:14px;' +
-            'z-index:9999;';
-
-        div.textContent = ${JSONObject.quote(message.text)};
-
-        target.appendChild(div);
-
-        return true;
-    """.trimIndent()
+            var target = document.querySelector('${config.targetSelector}');
+            if (!target) return false;
+    
+            var computedStyle = window.getComputedStyle(target);
+            if (computedStyle.position === 'static') {
+                target.style.position = 'relative';
+            }
+    
+            var div = document.createElement('div');
+            div.className = 'chatguard-info-message';
+            div.style.cssText =
+                'position:absolute;' +
+                'top:100%;' +
+                'left:0;' +
+                'background:$bgColor;' +
+                'color:#fff;' +
+                'width:100%;' +
+                'box-sizing:border-box;' +
+                'padding:6px 8px;' +
+                'font-size:14px;' +
+                'z-index:9999;';
+    
+            div.textContent = ${JSONObject.quote(message.text)};
+    
+            target.appendChild(div);
+    
+            return true;
+        """.trimIndent()
     }
 
     private fun buildRemoveInfoMessageScript(): String {
@@ -785,66 +777,66 @@ class DefaultWebContentExtractor(
 
 
         return """
-        var messageId = '$messageId';
-        var messageIdAttr = ${JSONObject.quote(messageIdAttribute)};
-        var injectionTarget = ${JSONObject.quote(injectionConfig.targetSelector)};
-        var insertPosition = ${JSONObject.quote(injectionConfig.insertPosition.name)};
-        var buttonId = ${JSONObject.quote(button.id)};
-        
-        var messageParent = document.querySelector('${config.messageParentSelector}[' + messageIdAttr + '="' + messageId + '"]');
-        
-        if (!messageParent) {
-            console.error('Message not found:', messageId);
-            return false;
-        }
-        
-        var targetElement = messageParent.querySelector(injectionTarget);
-        if (!targetElement) {
-            return false;
-        }
-        
-        var existingButton = messageParent.querySelector('[data-chatguard-button-id="' + buttonId + '"]');
-        if (existingButton) {
-            return true;
-        }
-        
-        var textContent = messageParent.querySelector('${config.messageSelector}');
-        
-        var button = document.createElement('button');
-        button.className = '$BUTTON_CLASS';
-        button.textContent = ${JSONObject.quote(button.text)};
-        button.setAttribute('data-chatguard-button-id', buttonId);
-        button.setAttribute('data-chatguard-button-type', ${JSONObject.quote(button.buttonType.name)});
-        button.disabled = ${!button.enabled};
-        button.setAttribute('style', ${JSONObject.quote(defaultStyle)});
-
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
+            var messageId = '$messageId';
+            var messageIdAttr = ${JSONObject.quote(messageIdAttribute)};
+            var injectionTarget = ${JSONObject.quote(injectionConfig.targetSelector)};
+            var insertPosition = ${JSONObject.quote(injectionConfig.insertPosition.name)};
+            var buttonId = ${JSONObject.quote(button.id)};
             
-            $BUTTON_BRIDGE_NAME.onButtonClick(
-                ${JSONObject.quote(button.buttonType.name)},
-                messageId
-            );
-        });
-        
-        switch(insertPosition) {
-            case 'BEFORE':
-                targetElement.parentNode.insertBefore(button, targetElement);
-                break;
-            case 'AFTER':
-                targetElement.parentNode.insertBefore(button, targetElement.nextSibling);
-                break;
-            case 'PREPEND':
-                targetElement.insertBefore(button, targetElement.firstChild);
-                break;
-            case 'APPEND':
-            default:
-                targetElement.appendChild(button);
-                break;
-        }
-        
-        return true;
+            var messageParent = document.querySelector('${config.messageParentSelector}[' + messageIdAttr + '="' + messageId + '"]');
+            
+            if (!messageParent) {
+                console.error('Message not found:', messageId);
+                return false;
+            }
+            
+            var targetElement = messageParent.querySelector(injectionTarget);
+            if (!targetElement) {
+                return false;
+            }
+            
+            var existingButton = messageParent.querySelector('[data-chatguard-button-id="' + buttonId + '"]');
+            if (existingButton) {
+                return true;
+            }
+            
+            var textContent = messageParent.querySelector('${config.messageSelector}');
+            
+            var button = document.createElement('button');
+            button.className = '$BUTTON_CLASS';
+            button.textContent = ${JSONObject.quote(button.text)};
+            button.setAttribute('data-chatguard-button-id', buttonId);
+            button.setAttribute('data-chatguard-button-type', ${JSONObject.quote(button.buttonType.name)});
+            button.disabled = ${!button.enabled};
+            button.setAttribute('style', ${JSONObject.quote(defaultStyle)});
+    
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                $BUTTON_BRIDGE_NAME.onButtonClick(
+                    ${JSONObject.quote(button.buttonType.name)},
+                    messageId
+                );
+            });
+            
+            switch(insertPosition) {
+                case 'BEFORE':
+                    targetElement.parentNode.insertBefore(button, targetElement);
+                    break;
+                case 'AFTER':
+                    targetElement.parentNode.insertBefore(button, targetElement.nextSibling);
+                    break;
+                case 'PREPEND':
+                    targetElement.insertBefore(button, targetElement.firstChild);
+                    break;
+                case 'APPEND':
+                default:
+                    targetElement.appendChild(button);
+                    break;
+            }
+            
+            return true;
     """.trimIndent()
     }
 

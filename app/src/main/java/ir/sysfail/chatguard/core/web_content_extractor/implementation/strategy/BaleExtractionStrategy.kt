@@ -10,29 +10,27 @@ class BaleExtractionStrategy : PlatformExtractionStrategy {
     override fun getSelectorConfig() = SelectorConfig(
         containerSelector = "#message_list_scroller_id",
         messageParentSelector = ".message-item",
-        messageSelector = ".p",
+        messageSelector = "[data-sid] > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) span.p",
         messageIdData = MESSAGE_ID_DATA,
-        ignoreSelectors = listOf(
-            ".time",
-        ),
+        ignoreSelectors = listOf(".time"),
         attributesToExtract = listOf(MESSAGE_ID_DATA),
-        sendButtonSelector = ".FRqrfO.RaTWwR",
+        sendButtonSelector = "#chat_footer > :has(#main-message-input) div[aria-label=\"send-button\"]:nth-child(5)",
         submitSendClick = "click",
         inputFieldSelector = "#main-message-input",
         messageMetaSelector = ".time",
         backgroundColorVariable = "--color-neutrals-n-00",
         buttonInjectionConfig = ButtonInjectionConfig(
-            targetSelector = ".IbyfBV",
-            insertPosition = InsertPosition.AFTER,
+            targetSelector = "[data-sid] > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1)",
+            insertPosition = InsertPosition.APPEND,
         ),
-        beforeSendPublicKeySelector = ".ZOgDy9",
+        beforeSendPublicKeySelector = ".main-section-container > div[aria-label=\"ChatAppBar\"]:nth-child(1) > div:nth-child(1) > div:nth-child(4)",
         userInfoSelector = UserInfoSelector(
-            fullNameSelector = ".nMlHDG"
+            fullNameSelector = ".main-section-container > div[aria-label=\"ChatAppBar\"]:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(1) > p:nth-child(1)"
         ),
         infoMessageConfig = InfoMessageConfig(
-            targetSelector = ".kvGVCY"
+            targetSelector = ".main-section-container > div[aria-label=\"ChatAppBar\"]:nth-child(1)"
         ),
-        chatHeader = ".kvGVCY"
+        chatHeader = ".main-section-container > div[aria-label=\"ChatAppBar\"]:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(1) > p:nth-child(1)"
     )
 
     override fun getProcessingConfig() = ProcessingConfig(
