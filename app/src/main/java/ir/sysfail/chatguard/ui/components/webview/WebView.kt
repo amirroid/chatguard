@@ -18,7 +18,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 fun WebView(
     state: WebViewState,
     update: (WebView) -> Unit,
-    onNewPageLoaded: () -> Unit,
+    onNewPageLoaded: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     AndroidView(
@@ -58,6 +58,15 @@ fun WebView(
                         state.canGoForward = canGoForward()
                     }
 
+                    override fun doUpdateVisitedHistory(
+                        view: WebView?,
+                        url: String?,
+                        isReload: Boolean
+                    ) {
+                        onNewPageLoaded.invoke(url ?: return)
+                        super.doUpdateVisitedHistory(view, url, isReload)
+                    }
+
                     override fun onReceivedError(
                         view: WebView,
                         request: WebResourceRequest,
@@ -70,15 +79,6 @@ fun WebView(
 
                         state.loadingError = WebViewError(message)
                         super.onReceivedError(view, request, error)
-                    }
-
-                    override fun doUpdateVisitedHistory(
-                        view: WebView?,
-                        url: String?,
-                        isReload: Boolean
-                    ) {
-                        super.doUpdateVisitedHistory(view, url, isReload)
-                        onNewPageLoaded.invoke()
                     }
 
                     override fun onReceivedHttpError(

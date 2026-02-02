@@ -72,7 +72,12 @@ fun WebFrameScreen(
                 webContentExtractor.attachToWebView(view)
                 webContentExtractor.setButtonClickListener(viewModel::handleButtonClick)
             },
-            onNewPageLoaded = {
+            onNewPageLoaded = { url ->
+                if (viewModel.lastLoadedUrl == url) {
+                    return@WebView
+                }
+                viewModel.lastLoadedUrl = url
+
                 viewModel.onPageLoaded()
                 scope.launch {
                     webContentExtractor.clearAllFlags()

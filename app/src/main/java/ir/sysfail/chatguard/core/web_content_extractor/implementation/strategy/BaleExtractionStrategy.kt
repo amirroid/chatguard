@@ -8,9 +8,9 @@ class BaleExtractionStrategy : PlatformExtractionStrategy {
     override val platform = MessengerPlatform.BALE
 
     override fun getSelectorConfig() = SelectorConfig(
-        containerSelector = ".JL_RzJ",
+        containerSelector = "#message_list_scroller_id",
         messageParentSelector = ".message-item",
-        messageSelector = ".KTwPFW.AiYtbO .p",
+        messageSelector = ".p",
         messageIdData = MESSAGE_ID_DATA,
         ignoreSelectors = listOf(
             ".time",
@@ -22,10 +22,10 @@ class BaleExtractionStrategy : PlatformExtractionStrategy {
         messageMetaSelector = ".time",
         backgroundColorVariable = "--color-neutrals-n-00",
         buttonInjectionConfig = ButtonInjectionConfig(
-            targetSelector = ".IheVs2.KgorAF.QMmcaY",
+            targetSelector = ".IbyfBV",
             insertPosition = InsertPosition.AFTER,
         ),
-        beforeSendPublicKeySelector = ".tf8V56",
+        beforeSendPublicKeySelector = ".ZOgDy9",
         userInfoSelector = UserInfoSelector(
             fullNameSelector = ".nMlHDG"
         ),

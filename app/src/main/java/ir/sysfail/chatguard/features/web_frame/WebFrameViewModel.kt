@@ -56,6 +56,8 @@ class WebFrameViewModel(
 
     private var currentUsername: String? = null
 
+    var lastLoadedUrl: String? = null
+
     private var loadsCount = 0
 
     private val platform = savedStateHandle.get<MessengerPlatform>("platform")!!
@@ -235,7 +237,7 @@ class WebFrameViewModel(
     private suspend fun processMessageTask(task: MessageTask) {
         val isPublicKey = if (!task.data.isMyMessage) {
             verifyPoeticPublicKeyUseCase(task.data.message)
-        } else false
+        } else verifyPoeticPublicKeyUseCase(task.data.message)
 
         var updatedMessage: String? = null
 
