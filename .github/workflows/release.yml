@@ -4,6 +4,9 @@ on:
   release:
     types: [created]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -54,11 +57,10 @@ jobs:
             app/build/outputs/apk/release/app-release-signed.apk
 
       - name: Upload Release APK
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          name: ${{ github.event.release.name }}
+          files: app/build/outputs/apk/release/app-release-signed.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./app/build/outputs/apk/release/app-release-signed.apk
-          asset_name: app-release-${{ github.event.release.tag_name }}.apk
-          asset_content_type: application/vnd.android.package-archive
