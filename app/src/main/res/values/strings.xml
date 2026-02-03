@@ -49,4 +49,5 @@
     <string name="warning" translatable="false">هشدار</string>
     <string name="save_successfully" translatable="false">فایل با موفقیت ذخیره شد</string>
     <string name="guides" translatable="false">راهنما</string>
+    <string name="decrypted" translatable="false">رمزگشایی شده</string>
 </resources>

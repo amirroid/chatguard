@@ -101,6 +101,11 @@ interface WebContentExtractor {
     suspend fun injectButton(messageId: String, button: InjectedButton): Boolean
 
     /**
+     * Remove all injected buttons
+     */
+    suspend fun removeAllInjectedButtons()
+
+    /**
      * Set up listener for button clicks
      */
     fun setButtonClickListener(listener: (ButtonClickData) -> Unit)

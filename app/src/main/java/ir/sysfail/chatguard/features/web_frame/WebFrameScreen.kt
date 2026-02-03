@@ -1,6 +1,5 @@
 package ir.sysfail.chatguard.features.web_frame
 
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background

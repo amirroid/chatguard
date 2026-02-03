@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material3.Button
@@ -125,7 +126,7 @@ private fun MessageComposer(
     messageText: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
-    onCloseComposer : () -> Unit,
+    onCloseComposer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
@@ -301,6 +302,18 @@ fun ChatMessageItem(
                         }
                     }
                 },
+                overlineContent = if (message.isDecryptedMessage) {
+                    {
+                       Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                           Icon(
+                               imageVector = Icons.Rounded.LockOpen,
+                               contentDescription = null,
+                               modifier = Modifier.size(12.dp)
+                           )
+                           Text(stringResource(R.string.decrypted))
+                       }
+                    }
+                } else null,
                 trailingContent = {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         IconButton(

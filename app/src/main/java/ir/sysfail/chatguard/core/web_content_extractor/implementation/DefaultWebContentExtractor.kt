@@ -283,6 +283,10 @@ class DefaultWebContentExtractor(
         return executeCustomScript(script).trim() == "true"
     }
 
+    override suspend fun removeAllInjectedButtons() {
+        executeCustomScript(buildRemoveAllButtonsScript())
+    }
+
     override suspend fun injectInfoMessage(message: InfoMessage): Boolean {
         removeInjectedInfoMessage()
 
@@ -504,7 +508,7 @@ class DefaultWebContentExtractor(
     }
 
     private fun buildIsChatPageScript(config: SelectorConfig) = """
-        var timeout = 5000;
+        var timeout = 10000;
         var resolved = false;
         var startTime = Date.now();
         
@@ -775,7 +779,6 @@ class DefaultWebContentExtractor(
                     "margin-left:auto;" +
                     "display:block;"
 
-
         return """
             var messageId = '$messageId';
             var messageIdAttr = ${JSONObject.quote(messageIdAttribute)};
@@ -786,7 +789,6 @@ class DefaultWebContentExtractor(
             var messageParent = document.querySelector('${config.messageParentSelector}[' + messageIdAttr + '="' + messageId + '"]');
             
             if (!messageParent) {
-                console.error('Message not found:', messageId);
                 return false;
             }
             
@@ -797,10 +799,8 @@ class DefaultWebContentExtractor(
             
             var existingButton = messageParent.querySelector('[data-chatguard-button-id="' + buttonId + '"]');
             if (existingButton) {
-                return true;
+                existingButton.remove();
             }
-            
-            var textContent = messageParent.querySelector('${config.messageSelector}');
             
             var button = document.createElement('button');
             button.className = '$BUTTON_CLASS';
@@ -810,15 +810,39 @@ class DefaultWebContentExtractor(
             button.disabled = ${!button.enabled};
             button.setAttribute('style', ${JSONObject.quote(defaultStyle)});
     
-            button.addEventListener('click', function(e) {
+            button.onclick = function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 
-                $BUTTON_BRIDGE_NAME.onButtonClick(
-                    ${JSONObject.quote(button.buttonType.name)},
-                    messageId
-                );
-            });
+                try {
+                    $BUTTON_BRIDGE_NAME.onButtonClick(
+                        ${JSONObject.quote(button.buttonType.name)},
+                        messageId
+                    );
+                } catch(err) {
+                    console.error('Button click error:', err);
+                }
+                
+                return false;
+            };
+            
+            button.ontouchstart = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                try {
+                    $BUTTON_BRIDGE_NAME.onButtonClick(
+                        ${JSONObject.quote(button.buttonType.name)},
+                        messageId
+                    );
+                } catch(err) {
+                    console.error('Button touch error:', err);
+                }
+                
+                return false;
+            };
             
             switch(insertPosition) {
                 case 'BEFORE':
@@ -838,6 +862,15 @@ class DefaultWebContentExtractor(
             
             return true;
     """.trimIndent()
+    }
+    private fun buildRemoveAllButtonsScript(): String {
+        return """
+            var buttons = document.querySelectorAll('.$BUTTON_CLASS');
+            buttons.forEach(function(button) {
+                button.remove();
+            });
+            return buttons.length;
+        """.trimIndent()
     }
 
     private fun buildObserveBackgroundColorScript(

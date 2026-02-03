@@ -89,7 +89,7 @@ class MessagesViewModel(
         ).getOrNull()
 
         return if (decryptedText != null) {
-            message.copy(message = decryptedText)
+            message.copy(message = decryptedText, isDecryptedMessage = true)
         } else {
             message
         }

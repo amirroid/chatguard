@@ -169,7 +169,13 @@ fun GuideScreen(onBack: () -> Unit) {
                 }
             )
             ChatMessageItem(
-                message = ChatMessageUiModel(0, SAMPLE_MESSAGE, false, "03:30"),
+                message = ChatMessageUiModel(
+                    0,
+                    SAMPLE_MESSAGE,
+                    false,
+                    "03:30",
+                    isDecryptedMessage = true
+                ),
                 onCopyMessage = {},
                 onSavePublicKey = {}
             )
