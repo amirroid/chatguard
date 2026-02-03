@@ -1,9 +1,8 @@
 name: Build and Release APK
 
 on:
-  push:
-    tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
+  release:
+    types: [created]
 
 jobs:
   build:
@@ -54,23 +53,12 @@ jobs:
           $ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs \
             app/build/outputs/apk/release/app-release-signed.apk
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-
       - name: Upload Release APK
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./app/build/outputs/apk/release/app-release-signed.apk
-          asset_name: app-release-${{ github.ref_name }}.apk
+          asset_name: app-release-${{ github.event.release.tag_name }}.apk
           asset_content_type: application/vnd.android.package-archive
