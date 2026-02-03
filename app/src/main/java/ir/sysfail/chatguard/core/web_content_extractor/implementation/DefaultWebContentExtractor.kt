@@ -248,7 +248,9 @@ class DefaultWebContentExtractor(
 
     override suspend fun isChatPage(): Boolean =
         executeCustomScript(buildIsChatPageScript(strategy.getSelectorConfig()))
-            .let { it.trim() == "true" }
+            .let {
+                println("SAdsadsadasdsa $it")
+                it.trim() == "true" }
 
     override fun observeBackgroundColor(onColorChanged: (String) -> Unit) {
         val webView = webView ?: return

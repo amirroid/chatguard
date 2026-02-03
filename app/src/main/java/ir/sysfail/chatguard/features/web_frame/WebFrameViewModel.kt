@@ -267,7 +267,7 @@ class WebFrameViewModel(
     private suspend fun processMessageTask(task: MessageTask) {
         val isPublicKey = if (!task.data.isMyMessage) {
             verifyPoeticPublicKeyUseCase(task.data.message)
-        } else verifyPoeticPublicKeyUseCase(task.data.message)
+        } else false
 
         var updatedMessage: String? = null
 

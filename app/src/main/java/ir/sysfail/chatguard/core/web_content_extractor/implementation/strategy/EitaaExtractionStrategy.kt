@@ -32,7 +32,7 @@ class EitaaExtractionStrategy : PlatformExtractionStrategy {
         infoMessageConfig = InfoMessageConfig(
             targetSelector = ".sidebar-header.topbar"
         ),
-        chatHeader = ".sidebar-header.topbar .chat-info"
+        chatHeader = ".sidebar-header.topbar .chat-info .peer-title"
     )
 
     override fun getProcessingConfig() = ProcessingConfig(

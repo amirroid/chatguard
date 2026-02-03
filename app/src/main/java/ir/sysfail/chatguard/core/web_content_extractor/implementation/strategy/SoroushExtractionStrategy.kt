@@ -38,7 +38,7 @@ class SoroushExtractionStrategy : PlatformExtractionStrategy {
         infoMessageConfig = InfoMessageConfig(
             targetSelector = ".messages-layout .MiddleHeader"
         ),
-        chatHeader = ".ChatInfo"
+        chatHeader = ".chat-info-wrapper .info .title .fullName"
     )
 
     override fun getProcessingConfig() = ProcessingConfig(
