@@ -1,23 +1,24 @@
+import io.github.reactivecircus.appversioning.toSemVer
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.app.versioning)
 }
 
 android {
-    namespace = "ir.sysfail.chatguard"
+    namespace = "ir.amirroid.chatguard"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "ir.sysfail.chatguard"
+        applicationId = "ir.amirroid.chatguard"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -41,6 +42,18 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+appVersioning {
+    enabled.set(true)
+
+    overrideVersionCode { gitTag, _, _ ->
+        val semVer = gitTag.toSemVer()
+        semVer.major * 1000000 + semVer.minor * 1000 + semVer.patch
+    }
+    overrideVersionName { gitTag, _, _ ->
+        gitTag.toString()
     }
 }
 
@@ -86,6 +99,5 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.androidx.compose.material.icons)
 
-
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation(libs.kotlinx.serialization)
 }

@@ -19,8 +19,8 @@ ksp = "2.0.21-1.0.27"
 navigationCompose = "2.9.1"
 datastore = "1.0.0"
 material-icons = "1.7.8"
-foundation = "1.8.2"
-foundationLayout = "1.8.2"
+app-versioning = "1.5.0"
+kotlinx-serialization = "1.7.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -40,6 +40,7 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 androidx-compose-material-icons = { module = "androidx.compose.material:material-icons-extended", version.ref = "material-icons" }
 
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-serialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
 # Room
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
@@ -69,4 +70,5 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+app-versioning = { id = "io.github.reactivecircus.app-versioning", version.ref = "app-versioning" }
 
