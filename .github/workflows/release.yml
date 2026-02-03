@@ -35,12 +35,17 @@ jobs:
         run: ./gradlew assembleRelease
 
       - name: Sign APK
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.keystore
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
-            --ks ${{ github.workspace }}/release-keystore.keystore \
-            --ks-key-alias ${{ secrets.KEY_ALIAS }} \
-            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
-            --key-pass pass:${{ secrets.KEY_PASSWORD }} \
+            --ks "$KEYSTORE_PATH" \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass "pass:$KEYSTORE_PASSWORD" \
+            --key-pass "pass:$KEY_PASSWORD" \
             --out app/build/outputs/apk/release/app-release-signed.apk \
             app/build/outputs/apk/release/app-release-unsigned.apk
 
