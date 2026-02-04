@@ -34,31 +34,24 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease
-
-      - name: Sign APK
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.keystore
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
-            --ks "$KEYSTORE_PATH" \
-            --ks-key-alias "$KEY_ALIAS" \
-            --ks-pass "pass:$KEYSTORE_PASSWORD" \
-            --key-pass "pass:$KEY_PASSWORD" \
-            --out app/build/outputs/apk/release/app-release-signed.apk \
-            app/build/outputs/apk/release/app-release-unsigned.apk
+        run: ./gradlew assembleRelease
+
+      - name: List APK files (debug)
+        run: ls -la app/build/outputs/apk/release/
 
       - name: Verify APK Signature
         run: |
           $ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs \
-            app/build/outputs/apk/release/app-release-signed.apk
+            app/build/outputs/apk/release/app-release.apk
 
       - name: Rename APK
         run: |
-          mv app/build/outputs/apk/release/app-release-signed.apk app/build/outputs/apk/release/chatguard.apk
+          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/chatguard.apk
 
       - name: Upload Release APK
         uses: softprops/action-gh-release@v2
