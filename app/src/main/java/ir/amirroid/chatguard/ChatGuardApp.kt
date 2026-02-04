@@ -44,7 +44,7 @@ class ChatGuardApp : Application() {
                 )
             )
 
-        setupGlobalExceptionHandler()
+        if (!BuildConfig.DEBUG) setupGlobalExceptionHandler()
 
         startKoin {
             androidContext(this@ChatGuardApp)

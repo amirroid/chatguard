@@ -56,11 +56,15 @@ jobs:
           $ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs \
             app/build/outputs/apk/release/app-release-signed.apk
 
+      - name: Rename APK
+        run: |
+          mv app/build/outputs/apk/release/app-release-signed.apk app/build/outputs/apk/release/chatguard.apk
+
       - name: Upload Release APK
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.release.tag_name }}
           name: ${{ github.event.release.name }}
-          files: app/build/outputs/apk/release/app-release-signed.apk
+          files: app/build/outputs/apk/release/chatguard.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
