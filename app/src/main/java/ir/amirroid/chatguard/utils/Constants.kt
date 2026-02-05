@@ -1,8 +1,6 @@
 package ir.amirroid.chatguard.utils
 
 object Constants {
-    const val MESSAGES_EXTRA = "messages"
-
     const val DATABASE_VERSION = 1
     const val DATABASE_FILE_NAME = "app_db.db"
 

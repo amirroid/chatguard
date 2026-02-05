@@ -1,5 +1,6 @@
 package ir.amirroid.chatguard.features.web_frame
 
+import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.core.graphics.toColorInt
 import androidx.lifecycle.SavedStateHandle
@@ -51,7 +52,7 @@ class WebFrameViewModel(
     private val messageContentToId = ConcurrentHashMap<String, String>()
     private val messageToUsername = ConcurrentHashMap<String, String>()
 
-    private val _events = Channel<WebFrameEvent>(capacity = Channel.BUFFERED)
+    private val _events = Channel<WebFrameEvent>(capacity = Channel.UNLIMITED)
     val events = _events.receiveAsFlow()
 
     private var currentUsername: String? = null
@@ -199,6 +200,7 @@ class WebFrameViewModel(
     }
 
     fun sendPoeticPublicKey() = viewModelScope.launch(Dispatchers.IO) {
+        Log.d("sadsadsdsad", "sendPublicKey: ")
         getPoeticSignedPublicKeyUseCase.invoke().onSuccess {
             _events.send(WebFrameEvent.SendMessage(it))
         }
@@ -238,7 +240,8 @@ class WebFrameViewModel(
         }
     }
 
-    fun handleSendMessage(message: String) = viewModelScope.launch(Dispatchers.IO) {
+    fun handleSendMessage(message: String) = viewModelScope.launch(Dispatchers.IO) {        Log.d("sadsadsdsad", "sendPublicKey: ")
+        Log.d("sadsadsdsad", "handleSendMessage: $message")
         _userPublicKey.filterNotNull().firstOrNull()?.onSuccess { key ->
             encryptionUseCase(message, key)
                 .onSuccess { encryptedMessage ->

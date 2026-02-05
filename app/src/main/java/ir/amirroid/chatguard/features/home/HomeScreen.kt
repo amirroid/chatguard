@@ -59,10 +59,6 @@ import ir.amirroid.chatguard.ui.components.TransparentListItem
 import ir.amirroid.chatguard.utils.Constants
 import org.koin.compose.viewmodel.koinViewModel
 
-// ============================================================================
-// Data Models
-// ============================================================================
-
 @Immutable
 data class MessengerItem(
     @field:StringRes val name: Int,
@@ -70,9 +66,6 @@ data class MessengerItem(
     val platform: MessengerPlatform
 )
 
-// ============================================================================
-// Constants
-// ============================================================================
 
 private val messengerItems = listOf(
     MessengerItem(
@@ -95,10 +88,6 @@ private val messengerItems = listOf(
 private val accessibilityPermissionItem = AccessibilityPermissionItem()
 private val overlayPermissionItem = OverlayPermissionItem()
 private val notificationsPermissionItem = NotificationsPermissionItem()
-
-// ============================================================================
-// Main Screen
-// ============================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
