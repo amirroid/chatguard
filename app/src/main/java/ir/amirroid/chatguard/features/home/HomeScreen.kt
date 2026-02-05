@@ -22,6 +22,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -41,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -106,13 +109,12 @@ fun HomeScreen(
     viewModel: HomeViewModel = koinViewModel()
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
 
-    // State
     var isAccessibilityItemExpanded by rememberSaveable { mutableStateOf(true) }
     var isSettingsItemExpanded by rememberSaveable { mutableStateOf(false) }
     var isExitKeysWarningDialog by rememberSaveable { mutableStateOf(false) }
 
-    // Permissions
     val permissionsState = rememberPermissionState(
         permissions = remember {
             buildList {
@@ -125,7 +127,6 @@ fun HomeScreen(
         }
     )
 
-    // File launcher
     val createFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri ->
@@ -143,7 +144,6 @@ fun HomeScreen(
         }
     }
 
-    // UI
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -187,12 +187,12 @@ fun HomeScreen(
                     createFileLauncher.launch("identity_keys_backup.${Constants.KEYS_EXTENSION}")
                 },
                 onExitKeys = { isExitKeysWarningDialog = true },
-                onGoToGuides = onGoToGuides
+                onGoToGuides = onGoToGuides,
+                onOpenNewIssue = { uriHandler.openUri("${Constants.REPOSITORY_URL}/issues") }
             )
         }
     }
 
-    // Dialog
     if (isExitKeysWarningDialog) {
         ExitKeysWarningDialog(
             onConfirmExit = {
@@ -206,9 +206,6 @@ fun HomeScreen(
     }
 }
 
-// ============================================================================
-// Composable Components
-// ============================================================================
 
 @Composable
 private fun MessengerCard(
@@ -282,7 +279,8 @@ private fun SettingsCard(
     onExpandToggle: () -> Unit,
     onExportKeys: () -> Unit,
     onExitKeys: () -> Unit,
-    onGoToGuides: () -> Unit
+    onGoToGuides: () -> Unit,
+    onOpenNewIssue: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -320,6 +318,21 @@ private fun SettingsCard(
                     modifier = Modifier.clickable(onClick = onExitKeys)
                 )
 
+                TransparentListItem(
+                    headlineContent = {
+                        Text(stringResource(R.string.new_issue))
+                    },
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .padding(end = 16.dp)
+                                .size(16.dp)
+                        )
+                    },
+                    modifier = Modifier.clickable(onClick = onOpenNewIssue)
+                )
                 TransparentListItem(
                     headlineContent = {
                         Text(stringResource(R.string.guides))

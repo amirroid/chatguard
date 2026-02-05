@@ -13,4 +13,6 @@ object Constants {
     const val KEYS_EXTENSION = "appkeys"
 
     const val CRASH_DATA_KEY = "crash_data"
+
+    const val REPOSITORY_URL = "https://github.com/amirroid/chatguard"
 }

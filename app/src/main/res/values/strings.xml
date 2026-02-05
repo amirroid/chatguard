@@ -33,7 +33,7 @@
         برای شروع، لطفاً مشخص کنید آیا مایل هستید از کلیدهای رمزنگاری قبلی خود استفاده کرده و آن‌ها را وارد نمایید،
         یا ترجیح می‌دهید یک کلید رمزنگاری جدید ایجاد کنید.
     </string>
-    <string name="welcome">به app_name خوش آمدید</string>
+    <string name="welcome" translatable="false">به app_name خوش آمدید</string>
     <string name="import_existing_keys" translatable="false">استفاده از کلیدهای رمزنگاری موجود</string>
     <string name="export_keys" translatable="false">خروجی گرفتن از کلیدهای رمزنگاری</string>
     <string name="exit_current_keys" translatable="false">عدم استفاده از کلیدهای فعلی</string>
@@ -44,10 +44,11 @@
     <string name="unverified_selected_file" translatable="false">فایل انتخاب‌شده معتبر نیست</string>
     <string name="verified_file" translatable="false">فایل با موفقیت تأیید شد</string>
     <string name="exit_keys_warning" translatable="false">در صورت خروج، امکان بازگرداندن کلیدهای فعلی وجود ندارد، مگر اینکه قبلاً آن‌ها را در محل دیگری ذخیره کرده باشید. آیا اطمینان دارید که می‌خواهید خارج شوید؟</string>
-    <string name="confirm">تأیید</string>
-    <string name="cancel">انصراف</string>
+    <string name="confirm" translatable="false">تأیید</string>
+    <string name="cancel" translatable="false">انصراف</string>
     <string name="warning" translatable="false">هشدار</string>
     <string name="save_successfully" translatable="false">فایل با موفقیت ذخیره شد</string>
     <string name="guides" translatable="false">راهنما</string>
+    <string name="new_issue" translatable="false">ارسال گزارش</string>
     <string name="decrypted" translatable="false">رمزگشایی شده</string>
 </resources>
