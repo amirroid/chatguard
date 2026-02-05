@@ -10,5 +10,5 @@ data class ProcessingConfig(
     val removeUrls: Boolean = false,
     val customProcessor: ((String) -> String)? = null,
     val findMessageId: ((ElementData) -> String?)? = null,
-    val checkIsOwnMessage: ((ElementData) -> Boolean)? = null
+    val checkIsOwnMessage: ((url: String, data: ElementData) -> Boolean)? = null
 )

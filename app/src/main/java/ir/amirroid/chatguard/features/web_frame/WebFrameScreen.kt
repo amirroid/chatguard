@@ -98,7 +98,7 @@ fun WebFrameScreen(
                     webContentExtractor.observeSendPublicKeyButton(viewModel::sendPoeticPublicKey)
 
                     webContentExtractor.observeMessages { newElements ->
-                        val messages = webContentExtractor.mapElementsToMessages(newElements)
+                        val messages = webContentExtractor.mapElementsToMessages(url, newElements)
                         viewModel.onNewMessagesDetected(messages)
                     }
 

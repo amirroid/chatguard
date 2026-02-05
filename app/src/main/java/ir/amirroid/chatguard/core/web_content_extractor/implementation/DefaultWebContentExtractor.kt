@@ -126,7 +126,10 @@ class DefaultWebContentExtractor(
         currentSendActionObserverCallbackId = null
     }
 
-    override fun mapElementsToMessages(elements: List<ElementData>): List<ExtractedElementMessage> {
+    override fun mapElementsToMessages(
+        currentUrl: String,
+        elements: List<ElementData>
+    ): List<ExtractedElementMessage> {
         val processing = strategy.getProcessingConfig()
 
         return elements.mapNotNull { element ->
@@ -135,7 +138,7 @@ class DefaultWebContentExtractor(
             ExtractedElementMessage(
                 message = element.text,
                 id = processing.findMessageId(element) ?: return@mapNotNull null,
-                isMyMessage = processing.checkIsOwnMessage(element)
+                isMyMessage = processing.checkIsOwnMessage(currentUrl, element)
             )
         }
     }
@@ -248,9 +251,7 @@ class DefaultWebContentExtractor(
 
     override suspend fun isChatPage(): Boolean =
         executeCustomScript(buildIsChatPageScript(strategy.getSelectorConfig()))
-            .let {
-                println("SAdsadsadasdsa $it")
-                it.trim() == "true" }
+            .let { it.trim() == "true" }
 
     override fun observeBackgroundColor(onColorChanged: (String) -> Unit) {
         val webView = webView ?: return
@@ -667,6 +668,10 @@ class DefaultWebContentExtractor(
                     button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3" style="pointer-events: none;"><path d="M280-400q-33 0-56.5-23.5T200-480q0-33 23.5-56.5T280-560q33 0 56.5 23.5T360-480q0 33-23.5 56.5T280-400Zm0 160q-100 0-170-70T40-480q0-100 70-170t170-70q67 0 121.5 33t86.5 87h352l120 120-180 180-80-60-80 60-85-60h-47q-32 54-86.5 87T280-240Zm0-80q56 0 98.5-34t56.5-86h125l58 41 82-61 71 55 75-75-40-40H435q-14-52-56.5-86T280-640q-66 0-113 47t-47 113q0 66 47 113t113 47Z"/></svg>';
                     
                     var clickHandler = function(e) {
+                        if (!e.isTrusted) {
+                            return false;
+                        }
+                        
                         e.preventDefault();
                         e.stopPropagation();
                         e.stopImmediatePropagation();
@@ -865,6 +870,7 @@ class DefaultWebContentExtractor(
             return true;
     """.trimIndent()
     }
+
     private fun buildRemoveAllButtonsScript(): String {
         return """
             var buttons = document.querySelectorAll('.$BUTTON_CLASS');
@@ -900,6 +906,8 @@ class DefaultWebContentExtractor(
             }
         
             var lastColor = null;
+            var maxAttempts = 50;
+            var attempts = 0;
         
             function emit() {
                 var c = getBg();
@@ -918,80 +926,83 @@ class DefaultWebContentExtractor(
         
             var interval = setInterval(function(){
                 emit();
-                if (lastColor) clearInterval(interval);
+                attempts++;
+                if (lastColor || attempts >= maxAttempts) {
+                    clearInterval(interval);
+                }
             }, 100);
         })();
     """.trimIndent()
 
     private fun buildSendMessageScript(message: String, config: SelectorConfig): String {
         return """
-        var input = document.querySelector('${config.inputFieldSelector}');
-        if (!input) return false;
-    
-        var valueSet = false;
-    
-        try {
-            var setter = null;
-            if (input.tagName === 'TEXTAREA') {
-                var desc = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value');
-                setter = desc ? desc.set : null;
-            } else if (input.tagName === 'INPUT') {
-                var desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
-                setter = desc ? desc.set : null;
-            } else if (input.isContentEditable) {
-                var desc = Object.getOwnPropertyDescriptor(window.HTMLDivElement.prototype, 'textContent');
-                setter = desc ? desc.set : null;
-            }
-    
-            if (setter) {
-                setter.call(input, ${JSONObject.quote(message)});
-                valueSet = true;
-            }
-        } catch (e) { }
-    
-        if (!valueSet) {
-            if ('value' in input) {
-                input.value = ${JSONObject.quote(message)};
-            } else if (input.isContentEditable) {
-                input.textContent = ${JSONObject.quote(message)};
-            } else {
-                input.innerText = ${JSONObject.quote(message)};
-            }
-        }
-    
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-    
-        window.__chatguardIsSending = true;
+            var input = document.querySelector('${config.inputFieldSelector}');
+            if (!input) return false;
         
-        var attempts = 0;
-        var messageSent = false;
+            var valueSet = false;
         
-        var checkAndClick = function() {
-            if (messageSent) return;
+            try {
+                var setter = null;
+                if (input.tagName === 'TEXTAREA') {
+                    var desc = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value');
+                    setter = desc ? desc.set : null;
+                } else if (input.tagName === 'INPUT') {
+                    var desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+                    setter = desc ? desc.set : null;
+                } else if (input.isContentEditable) {
+                    var desc = Object.getOwnPropertyDescriptor(window.HTMLDivElement.prototype, 'textContent');
+                    setter = desc ? desc.set : null;
+                }
+        
+                if (setter) {
+                    setter.call(input, ${JSONObject.quote(message)});
+                    valueSet = true;
+                }
+            } catch (e) { }
+        
+            if (!valueSet) {
+                if ('value' in input) {
+                    input.value = ${JSONObject.quote(message)};
+                } else if (input.isContentEditable) {
+                    input.textContent = ${JSONObject.quote(message)};
+                } else {
+                    input.innerText = ${JSONObject.quote(message)};
+                }
+            }
+        
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        
+            window.__chatguardIsSending = true;
             
-            var sendBtn = document.querySelector('${config.sendButtonSelector}');
+            var attempts = 0;
+            var messageSent = false;
             
-            if (sendBtn && sendBtn.offsetParent !== null) {
-                messageSent = true;
+            var checkAndClick = function() {
+                if (messageSent) return;
                 
-                ${generateClickEvents(config.submitSendClick)}
+                var sendBtn = document.querySelector('${config.sendButtonSelector}');
                 
-                setTimeout(function() {
+                if (sendBtn && sendBtn.offsetParent !== null) {
+                    messageSent = true;
+                    
+                    ${generateClickEvents(config.submitSendClick)}
+                    
+                    setTimeout(function() {
+                        window.__chatguardIsSending = false;
+                    }, 1000);
+                } else if (attempts < 10) {
+                    attempts++;
+                    setTimeout(checkAndClick, 100);
+                } else {
                     window.__chatguardIsSending = false;
-                }, 1000);
-            } else if (attempts < 10) {
-                attempts++;
-                setTimeout(checkAndClick, 100);
-            } else {
-                window.__chatguardIsSending = false;
-            }
-        };
+                }
+            };
+            
+            setTimeout(checkAndClick, 200);
         
-        setTimeout(checkAndClick, 200);
-    
-        return true;
-    """.trimIndent()
+            return true;
+        """.trimIndent()
     }
 
     private fun generateClickEvents(submitType: String?): String {
@@ -1000,18 +1011,18 @@ class DefaultWebContentExtractor(
             "mousedown" -> "sendBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));"
             "mouseup" -> "sendBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));"
             "all" -> """
-                sendBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-                sendBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
-                sendBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-                sendBtn.click();
-            """.trimIndent()
+            sendBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+            sendBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+            sendBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            sendBtn.click();
+        """.trimIndent()
 
             else -> """
-                sendBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-                sendBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
-                sendBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-                sendBtn.click();
-            """.trimIndent()
+            sendBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+            sendBtn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+            sendBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            sendBtn.click();
+        """.trimIndent()
         }
     }
 
@@ -1062,6 +1073,10 @@ class DefaultWebContentExtractor(
                 btn.__chatguardSendHandler = function(event) {
                     if (window.__chatguardIsSending) {
                         window.__chatguardIsSending = false;
+                        return;
+                    }
+                    
+                    if (!event.isTrusted) {
                         return;
                     }
                     
@@ -1288,7 +1303,6 @@ class DefaultWebContentExtractor(
                         var foundMatch = false;
                         for (var [oldId, oldContent] of messageContents) {
                             if (oldContent === currentContent && oldId !== currentId && !currentIds.has(oldId)) {
-                                // پیدا شدن محتوای یکسان با ID متفاوت = تغییر ID
                                 return true;
                             }
                         }

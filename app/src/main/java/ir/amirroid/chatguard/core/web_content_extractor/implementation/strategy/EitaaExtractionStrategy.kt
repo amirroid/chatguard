@@ -42,7 +42,7 @@ class EitaaExtractionStrategy : PlatformExtractionStrategy {
         findMessageId = { data ->
             data.customAttributes[MESSAGE_ID_DATA].takeIf { !it.isNullOrBlank() }
         },
-        checkIsOwnMessage = { data ->
+        checkIsOwnMessage = { _, data ->
             data.className.split(" ").contains("is-out")
         }
     )

@@ -1,8 +1,10 @@
 package ir.amirroid.chatguard.core.web_content_extractor.implementation.strategy
 
+import androidx.core.net.toUri
 import ir.amirroid.chatguard.core.messanger.models.MessengerPlatform
 import ir.amirroid.chatguard.core.web_content_extractor.abstraction.PlatformExtractionStrategy
 import ir.amirroid.chatguard.core.web_content_extractor.models.*
+import kotlin.text.isNullOrBlank
 
 class BaleExtractionStrategy : PlatformExtractionStrategy {
     override val platform = MessengerPlatform.BALE
@@ -37,13 +39,19 @@ class BaleExtractionStrategy : PlatformExtractionStrategy {
         trimWhitespace = true,
         removeEmptyLines = true,
         normalizeSpaces = true,
-        findMessageId = { data ->
-            data.customAttributes[MESSAGE_ID_DATA].takeIf { !it.isNullOrBlank() }
-        },
-        checkIsOwnMessage = { data ->
-            data.className.split(" ").contains("LtdUd1")
+        findMessageId = ::findElementId,
+        checkIsOwnMessage = { url, data ->
+            val uri = url.toUri()
+            val contactUid = uri.getQueryParameter("uid") ?: return@ProcessingConfig false
+            val messageId = findElementId(data) ?: return@ProcessingConfig false
+
+            messageId.split("-").lastOrNull() != contactUid
         }
     )
+
+    private fun findElementId(data: ElementData): String? {
+        return data.customAttributes[MESSAGE_ID_DATA].takeIf { !it.isNullOrBlank() }
+    }
 
     override fun validateElement(text: String, html: String, attributes: Map<String, String>) =
         text.length > 2

@@ -93,7 +93,10 @@ interface WebContentExtractor {
     /**
      * Convert extracted elements to message models
      */
-    fun mapElementsToMessages(elements: List<ElementData>): List<ExtractedElementMessage>
+    fun mapElementsToMessages(
+        currentUrl: String,
+        elements: List<ElementData>
+    ): List<ExtractedElementMessage>
 
     /**
      * Inject a button into a specific message
