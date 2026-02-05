@@ -1,5 +1,6 @@
 package ir.amirroid.chatguard.features.guide
 
+import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -197,7 +198,7 @@ fun GuideScreen(onBack: () -> Unit) {
                 message = ChatMessageUiModel(0, SAMPLE_MESSAGE, false, "00:00", isPublicKey = true),
                 onCopyMessage = {},
                 onSavePublicKey = {
-                    Toast.makeText(context, R.string.confirm, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, R.string.usage, Toast.LENGTH_SHORT).show()
                 }
             )
             Text(
@@ -261,6 +262,7 @@ fun GuideScreen(onBack: () -> Unit) {
     }
 }
 
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Preview
 @Composable
 private fun GuideScreenPreview() {
