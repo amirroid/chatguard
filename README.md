@@ -8,3 +8,6 @@ found in the [How it Works](docs/HOW_IT_WORKS.md) guide, and instructions for us
 available in the [How to Use (English)](docs/HOW_TO_USE.md)
 or [How to Use (Persian)](docs/HOW_TO_USE_FA.md) guides. The latest versions of the app can be
 downloaded [from GitHub Releases](https://github.com/amirroid/ChatGuard/releases).
+
+Finally, this project was inspired by the following repository. Special thanks to its developer for sharing the idea and their valuable work:
+https://github.com/mostafa-kheibary/ChatGuard
