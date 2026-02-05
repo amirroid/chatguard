@@ -37,4 +37,9 @@ interface PlatformExtractionStrategy {
      * Optional: Custom JavaScript code to inject after load completed
      */
     fun getInitialExecutionScript(): String? = null
+
+    /**
+     * Check if the given URL belongs to a chat page
+     */
+    fun isChatUrl(url: String): Boolean = true
 }

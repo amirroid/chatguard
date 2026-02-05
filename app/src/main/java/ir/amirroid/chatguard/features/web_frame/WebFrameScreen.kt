@@ -86,6 +86,10 @@ fun WebFrameScreen(
 
                     webContentExtractor.observeBackgroundColor(viewModel::updateBackgroundColor)
 
+                    if (!webContentExtractor.isChatUrl(url)) {
+                        return@launch
+                    }
+
                     if (!webContentExtractor.isChatPage()) {
                         return@launch
                     }

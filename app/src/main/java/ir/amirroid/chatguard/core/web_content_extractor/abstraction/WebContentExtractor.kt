@@ -48,6 +48,11 @@ interface WebContentExtractor {
     suspend fun isChatPage(): Boolean
 
     /**
+     * Check if the given URL belongs to a chat page
+     */
+    fun isChatUrl(url: String): Boolean
+
+    /**
      * Observe background color changes of the current page
      */
     fun observeBackgroundColor(onColorChanged: (String) -> Unit)

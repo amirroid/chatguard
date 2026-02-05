@@ -42,7 +42,7 @@ class BaleExtractionStrategy : PlatformExtractionStrategy {
         findMessageId = ::findElementId,
         checkIsOwnMessage = { url, data ->
             val uri = url.toUri()
-            val contactUid = uri.getQueryParameter("uid") ?: return@ProcessingConfig false
+            val contactUid = uri.getQueryParameter(UID_QUERY_PARAM) ?: return@ProcessingConfig false
             val messageId = findElementId(data) ?: return@ProcessingConfig false
 
             messageId.split("-").lastOrNull() != contactUid
@@ -59,7 +59,11 @@ class BaleExtractionStrategy : PlatformExtractionStrategy {
     override fun transformData(data: ElementData) =
         data.copy(text = data.text.replace(Regex("\\s+"), " ").trim())
 
+    override fun isChatUrl(url: String): Boolean =
+        url.toUri().getQueryParameter(UID_QUERY_PARAM) != null
+
     companion object {
         private const val MESSAGE_ID_DATA = "data-sid"
+        private const val UID_QUERY_PARAM = "uid"
     }
 }

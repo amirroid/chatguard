@@ -253,6 +253,8 @@ class DefaultWebContentExtractor(
         executeCustomScript(buildIsChatPageScript(strategy.getSelectorConfig()))
             .let { it.trim() == "true" }
 
+    override fun isChatUrl(url: String): Boolean = strategy.isChatUrl(url)
+
     override fun observeBackgroundColor(onColorChanged: (String) -> Unit) {
         val webView = webView ?: return
 
