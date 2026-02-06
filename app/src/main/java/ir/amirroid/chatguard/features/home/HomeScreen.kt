@@ -46,7 +46,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import ir.amirroid.chatguard.BuildConfig
 import ir.amirroid.chatguard.R
 import ir.amirroid.chatguard.core.messanger.models.MessengerPlatform
 import ir.amirroid.chatguard.core.permission.implementation.AccessibilityPermissionItem
@@ -178,6 +180,13 @@ fun HomeScreen(
                 onExitKeys = { isExitKeysWarningDialog = true },
                 onGoToGuides = onGoToGuides,
                 onOpenNewIssue = { uriHandler.openUri("${Constants.REPOSITORY_URL}/issues") }
+            )
+        }
+        item("version") {
+            Text(
+                stringResource(R.string.version, BuildConfig.VERSION_NAME),
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
             )
         }
     }
