@@ -63,6 +63,8 @@ class WebFrameViewModel(
     private val platform = savedStateHandle.get<MessengerPlatform>("platform")!!
     private val _userPublicKey = MutableStateFlow<Result<CryptoKey>?>(null)
 
+    private var lastSendMessageTime = 0L
+
     init {
         startTaskProcessor()
     }
@@ -78,15 +80,12 @@ class WebFrameViewModel(
     fun handleUserInfoKey(userInfo: ExtractedUserInfo) = viewModelScope.launch(Dispatchers.IO) {
         currentUsername = userInfo.username
 
-        getPublicKeyUseCase(userInfo.username, platform.packageName)
-            .onSuccess {
+        getPublicKeyUseCase(userInfo.username, platform.packageName).onSuccess {
                 _events.send(WebFrameEvent.ClearInfoMessage)
-            }
-            .onFailure {
+            }.onFailure {
                 _events.send(
                     WebFrameEvent.ShowInfoMessageResource(
-                        R.string.encryption_key_was_not_found,
-                        InfoMessageType.ERROR
+                        R.string.encryption_key_was_not_found, InfoMessageType.ERROR
                     )
                 )
             }.also { result ->
@@ -180,8 +179,7 @@ class WebFrameViewModel(
         result.updatedMessage?.let { newText ->
             _events.send(
                 WebFrameEvent.UpdateMessageText(
-                    messageId = messageId,
-                    newText = newText
+                    messageId = messageId, newText = newText
                 )
             )
         }
@@ -189,8 +187,7 @@ class WebFrameViewModel(
 
     private fun startTaskProcessor() {
         viewModelScope.launch(Dispatchers.IO) {
-            taskQueue.consumeAsFlow()
-                .collect { task ->
+            taskQueue.consumeAsFlow().collect { task ->
                     launch(Dispatchers.IO) {
                         processMessageTask(task)
                     }
@@ -208,9 +205,7 @@ class WebFrameViewModel(
         val username = currentUsername ?: return
 
         addUserPublicKeyUseCase(
-            packageName = platform.packageName,
-            username = username,
-            key = publicKey
+            packageName = platform.packageName, username = username, key = publicKey
         ).onSuccess {
             clearResultsForUser(username)
             _events.send(WebFrameEvent.RefreshWebView)
@@ -218,10 +213,8 @@ class WebFrameViewModel(
     }
 
     private fun clearResultsForUser(username: String) {
-        val messageIdsToRemove = messageToUsername
-            .filter { (_, user) -> user == username }
-            .map { (messageId, _) -> messageId }
-            .toSet()
+        val messageIdsToRemove = messageToUsername.filter { (_, user) -> user == username }
+            .map { (messageId, _) -> messageId }.toSet()
 
         messageIdsToRemove.forEach { messageId ->
             val result = taskResults[messageId]
@@ -239,9 +232,14 @@ class WebFrameViewModel(
     }
 
     fun handleSendMessage(message: String) = viewModelScope.launch(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        if (now - lastSendMessageTime < 200) {
+            return@launch
+        }
+        lastSendMessageTime = now
+
         _userPublicKey.filterNotNull().firstOrNull()?.onSuccess { key ->
-            encryptionUseCase(message, key)
-                .onSuccess { encryptedMessage ->
+            encryptionUseCase(message, key).onSuccess { encryptedMessage ->
                     _events.send(WebFrameEvent.SendMessage(encryptedMessage))
                 }
         }?.onFailure {
@@ -255,8 +253,7 @@ class WebFrameViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             when (data.buttonType) {
                 ButtonType.CHOOSE_KEY -> {
-                    getPoeticPublicKeyUseCase(messageResult.realMessage)
-                        .onSuccess { publicKey ->
+                    getPoeticPublicKeyUseCase(messageResult.realMessage).onSuccess { publicKey ->
                             savePublicKey(publicKey)
                         }
                 }
@@ -273,9 +270,7 @@ class WebFrameViewModel(
 
         _userPublicKey.filterNotNull().firstOrNull()?.onSuccess { key ->
             decryptionUseCase(
-                task.data.message,
-                key,
-                isAmSender = task.data.isMyMessage
+                task.data.message, key, isAmSender = task.data.isMyMessage
             ).getOrNull()?.also {
                 updatedMessage = "🔒 $it"
             }
