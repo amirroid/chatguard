@@ -1,6 +1,7 @@
 package ir.amirroid.chatguard.core.messanger.implementation
 
 import android.os.Bundle
+import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import ir.amirroid.chatguard.core.messanger.abstraction.MessengerNodeReader
 import ir.amirroid.chatguard.core.messanger.models.ChatMessage
@@ -70,6 +71,7 @@ class BaleMessengerNodeReader : MessengerNodeReader {
     private fun extractChatMessage(node: AccessibilityNodeInfo): ChatMessage? {
         val raw = node.contentDescription?.toString() ?: return null
         val content = raw.trim()
+        Log.d("dsasadasdsa", "extractChatMessage: $raw")
 
         val time = extractTime(content).takeIf { it.isNotEmpty() } ?: return null
         val text = extractMessageText(content)
@@ -90,7 +92,7 @@ class BaleMessengerNodeReader : MessengerNodeReader {
     }
 
     private fun extractTime(content: String): String {
-        val patterns = listOf(" در ", "در")
+        val patterns = listOf("at", " در ", "در")
 
         for (pattern in patterns) {
             val index = content.lastIndexOf(pattern)
@@ -142,7 +144,7 @@ class BaleMessengerNodeReader : MessengerNodeReader {
 
         private const val WITH_TEXT_MARKER = "بامتن"
 
-        private val SENT_MARKERS = setOf("seen", "ارسال شده", "دیده شده")
+        private val SENT_MARKERS = setOf("seen", "not seen", "ارسال شده", "دیده شده")
         private val RECEIVED_MARKERS = setOf("received", "دریافت شده")
     }
 }

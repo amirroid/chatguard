@@ -23,6 +23,7 @@ class SoroushMessengerNodeReader : MessengerNodeReader {
         val recyclerView = findRecyclerView(rootNode) ?: return emptyList()
 
         return extractMessagesFromRecyclerView(recyclerView)
+            .reversed()
     }
 
     override fun isChatScreen(rootNode: AccessibilityNodeInfo?): Boolean {

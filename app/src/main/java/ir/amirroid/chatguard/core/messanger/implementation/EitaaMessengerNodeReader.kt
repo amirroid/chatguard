@@ -21,7 +21,6 @@ class EitaaMessengerNodeReader : MessengerNodeReader {
 
         return findMessageNodes(rootNode)
             .mapNotNull(::extractChatMessage)
-            .reversed()
     }
 
     override fun isChatScreen(rootNode: AccessibilityNodeInfo?): Boolean {
