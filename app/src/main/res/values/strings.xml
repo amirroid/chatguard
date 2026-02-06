@@ -51,5 +51,5 @@
     <string name="guides" translatable="false">راهنما</string>
     <string name="new_issue" translatable="false">ارسال گزارش</string>
     <string name="decrypted" translatable="false">رمزگشایی شده</string>
-    <string name="version" translatable="false">ورژن: %1$s</string>
+    <string name="version" translatable="false">ورژن:</string>
 </resources>
