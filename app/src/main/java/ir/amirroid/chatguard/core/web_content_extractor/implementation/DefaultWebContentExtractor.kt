@@ -5,6 +5,7 @@ import android.webkit.WebView
 import ir.amirroid.chatguard.core.web_content_extractor.abstraction.WebContentExtractor
 import ir.amirroid.chatguard.core.web_content_extractor.abstraction.PlatformExtractionStrategy
 import ir.amirroid.chatguard.core.web_content_extractor.models.*
+import ir.amirroid.chatguard.utils.Constants
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONArray
 import org.json.JSONObject
@@ -329,6 +330,10 @@ class DefaultWebContentExtractor(
 
     override suspend fun clearAllFlags() {
         executeCustomScript(buildClearAllFlagsScript())
+    }
+
+    override suspend fun attachInputCounterText() {
+        executeCustomScript(buildCharacterCounterScript(strategy.getSelectorConfig()))
     }
 
     override fun cleanup() {
@@ -1142,6 +1147,121 @@ class DefaultWebContentExtractor(
         })();
     """.trimIndent()
 
+    private fun buildCharacterCounterScript(
+        config: SelectorConfig,
+        maxLength: Int = Constants.MAX_SEND_MESSAGE_SIZE
+    ) = """
+        var input = document.querySelector('${config.inputFieldSelector}');
+        if (!input) return false;
+        
+        if (window.__chatguardCounterElement) {
+            window.__chatguardCounterElement.remove();
+            delete window.__chatguardCounterElement;
+        }
+        
+        if (window.__chatguardCounterObserver) {
+            window.__chatguardCounterObserver.disconnect();
+            delete window.__chatguardCounterObserver;
+        }
+        
+        var progressRing = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        progressRing.setAttribute('width', '24');
+        progressRing.setAttribute('height', '24');
+        progressRing.style.cssText = 'position: absolute; left: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; z-index: 10;';
+        
+        var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', '12');
+        circle.setAttribute('cy', '12');
+        circle.setAttribute('r', '10');
+        circle.setAttribute('fill', 'none');
+        circle.setAttribute('stroke', '#e0e0e0');
+        circle.setAttribute('stroke-width', '2');
+        
+        var progressCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        progressCircle.setAttribute('cx', '12');
+        progressCircle.setAttribute('cy', '12');
+        progressCircle.setAttribute('r', '10');
+        progressCircle.setAttribute('fill', 'none');
+        progressCircle.setAttribute('stroke', '#666');
+        progressCircle.setAttribute('stroke-width', '2');
+        progressCircle.setAttribute('stroke-linecap', 'round');
+        progressCircle.setAttribute('transform', 'rotate(-90 12 12)');
+        
+        var circumference = 2 * Math.PI * 10;
+        progressCircle.style.strokeDasharray = circumference;
+        progressCircle.style.strokeDashoffset = circumference;
+        progressCircle.style.transition = 'stroke-dashoffset 0.2s ease, stroke 0.2s ease';
+        
+        progressRing.appendChild(circle);
+        progressRing.appendChild(progressCircle);
+        
+        var container = input.parentElement;
+        if (container) {
+            var currentPosition = window.getComputedStyle(container).position;
+            if (currentPosition === 'static') {
+                container.style.position = 'relative';
+            }
+            
+            var currentPadding = window.getComputedStyle(input).paddingLeft;
+            var paddingValue = parseInt(currentPadding) || 0;
+            if (paddingValue < 36) {
+                input.style.paddingLeft = '36px';
+            }
+            
+            container.appendChild(progressRing);
+            window.__chatguardCounterElement = progressRing;
+        }
+        
+        function updateProgress() {
+            var currentInput = document.querySelector('${config.inputFieldSelector}');
+            if (!currentInput) return;
+            
+            var text = currentInput.value || currentInput.textContent || currentInput.innerText || '';
+            var length = text.trim().length;
+            var percentage = Math.min(length / ${maxLength}, 1);
+            var offset = circumference - (percentage * circumference);
+            
+            progressCircle.style.strokeDashoffset = offset;
+            
+            if (length > ${maxLength}) {
+                progressCircle.setAttribute('stroke', '#ff0000');
+            } else if (length > ${maxLength} * 0.9) {
+                progressCircle.setAttribute('stroke', '#ff9800');
+            } else {
+                progressCircle.setAttribute('stroke', '#666');
+            }
+        }
+        
+        input.addEventListener('input', updateProgress);
+        input.addEventListener('keyup', updateProgress);
+        
+        var observer = new MutationObserver(updateProgress);
+        observer.observe(input, {
+            characterData: true,
+            childList: true,
+            subtree: true
+        });
+        window.__chatguardCounterObserver = observer;
+        
+        updateProgress();
+        
+        return true;
+    """.trimIndent()
+
+    private fun clearCharacterCounterScript() = """
+        if (window.__chatguardCounterElement) {
+            window.__chatguardCounterElement.remove();
+            delete window.__chatguardCounterElement;
+        }
+        
+        if (window.__chatguardCounterObserver) {
+            window.__chatguardCounterObserver.disconnect();
+            delete window.__chatguardCounterObserver;
+        }
+        
+        return true;
+    """.trimIndent()
+
     private fun buildClearAllFlagsScript() = """
         (function() {
             if (window.__chatguardSendObserver) {
@@ -1185,6 +1305,8 @@ class DefaultWebContentExtractor(
                 }
                 btn.remove();
             });
+            
+            ${clearCharacterCounterScript()}
             
             var infoMessages = document.querySelectorAll('.chatguard-info-message');
             infoMessages.forEach(function(msg) {

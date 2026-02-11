@@ -86,6 +86,7 @@ class WebFrameViewModel(
 
         getPublicKeyUseCase(userInfo.username, platform.packageName).onSuccess {
             _events.send(WebFrameEvent.ClearInfoMessage)
+            _events.send(WebFrameEvent.AttachTextCounter)
         }.onFailure {
             _events.send(
                 WebFrameEvent.ShowInfoMessageResource(

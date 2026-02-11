@@ -218,6 +218,8 @@ fun WebFrameScreen(
                         event.message,
                         Toast.LENGTH_SHORT
                     ).show()
+
+                    is WebFrameEvent.AttachTextCounter -> webContentExtractor.attachInputCounterText()
                 }
             }
         }

@@ -155,4 +155,6 @@ interface WebContentExtractor {
 
 
     suspend fun clearAllFlags()
+
+    suspend fun attachInputCounterText()
 }

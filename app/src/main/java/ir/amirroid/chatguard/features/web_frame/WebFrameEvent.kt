@@ -19,4 +19,5 @@ sealed interface WebFrameEvent {
     data class UpdateMessageText(val messageId: String, val newText: String) : WebFrameEvent
     data class SendMessage(val message: String) : WebFrameEvent
     data class ShowToast(val message: Int) : WebFrameEvent
+    data object AttachTextCounter : WebFrameEvent
 }
