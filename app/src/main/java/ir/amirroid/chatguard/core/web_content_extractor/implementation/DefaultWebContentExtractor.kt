@@ -1248,20 +1248,6 @@ class DefaultWebContentExtractor(
         return true;
     """.trimIndent()
 
-    private fun clearCharacterCounterScript() = """
-        if (window.__chatguardCounterElement) {
-            window.__chatguardCounterElement.remove();
-            delete window.__chatguardCounterElement;
-        }
-        
-        if (window.__chatguardCounterObserver) {
-            window.__chatguardCounterObserver.disconnect();
-            delete window.__chatguardCounterObserver;
-        }
-        
-        return true;
-    """.trimIndent()
-
     private fun buildClearAllFlagsScript() = """
         (function() {
             if (window.__chatguardSendObserver) {
@@ -1306,8 +1292,16 @@ class DefaultWebContentExtractor(
                 btn.remove();
             });
             
-            ${clearCharacterCounterScript()}
+            if (window.__chatguardCounterElement) {
+                window.__chatguardCounterElement.remove();
+                delete window.__chatguardCounterElement;
+            }
             
+            if (window.__chatguardCounterObserver) {
+                window.__chatguardCounterObserver.disconnect();
+                delete window.__chatguardCounterObserver;
+            }
+        
             var infoMessages = document.querySelectorAll('.chatguard-info-message');
             infoMessages.forEach(function(msg) {
                 msg.remove();
