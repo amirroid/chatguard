@@ -52,4 +52,5 @@
     <string name="new_issue" translatable="false">ارسال گزارش</string>
     <string name="decrypted" translatable="false">رمزگشایی شده</string>
     <string name="version" translatable="false">ورژن:</string>
+    <string name="message_limit_text" translatable="false">حداکثر طول مجاز هر پیام ۶۰۰ کاراکتر است.</string>
 </resources>

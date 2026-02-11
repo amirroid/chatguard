@@ -1,5 +1,6 @@
 package ir.amirroid.chatguard.features.web_frame
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -209,6 +210,12 @@ fun WebFrameScreen(
                         viewModel.lastLoadedUrl = null
                         webViewState.reload()
                     }
+
+                    is WebFrameEvent.ShowToast -> Toast.makeText(
+                        context,
+                        event.message,
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         }

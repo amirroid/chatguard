@@ -26,12 +26,14 @@ import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -48,6 +50,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.ClipEntry
@@ -55,12 +58,17 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ir.amirroid.chatguard.R
 import ir.amirroid.chatguard.ui.components.ExpandIconButton
 import ir.amirroid.chatguard.ui.components.TransparentListItem
+import ir.amirroid.chatguard.ui.theme.ChatGuardTheme
 import ir.amirroid.chatguard.ui_models.message.ChatMessageUiModel
+import ir.amirroid.chatguard.utils.Constants
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -150,23 +158,50 @@ private fun MessageComposer(
         verticalAlignment = Alignment.Bottom
     ) {
 
-        FilledIconButton(
-            onClick = {
-                focusManager.clearFocus()
-                onSend.invoke()
-            },
-            enabled = messageText.isNotEmpty(),
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.size(56.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Send,
-                contentDescription = stringResource(R.string.send_message),
-            )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            AnimatedVisibility(messageText.length > 200) {
+                Column(
+                    modifier = Modifier
+                        .padding(bottom = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(
+                        progress = {
+                            messageText.length.div(Constants.MAX_SEND_MESSAGE_SIZE.toFloat())
+                                .coerceIn(0f, 1f)
+                        },
+                        modifier = Modifier
+                            .size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Text(
+                        text = "${messageText.length} / ${Constants.MAX_SEND_MESSAGE_SIZE}",
+                        fontSize = 10.sp,
+                        modifier = Modifier.alpha(.7f),
+                        style = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr)
+                    )
+                }
+            }
+            FilledIconButton(
+                onClick = {
+                    focusManager.clearFocus()
+                    onSend.invoke()
+                },
+                enabled = messageText.isNotEmpty(),
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.size(56.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Send,
+                    contentDescription = stringResource(R.string.send_message),
+                )
+            }
         }
         OutlinedTextField(
             value = messageText,
-            onValueChange = onValueChange,
+            onValueChange = {
+                onValueChange.invoke(it.take(Constants.MAX_SEND_MESSAGE_SIZE))
+            },
             modifier = modifier
                 .focusRequester(focusRequester)
                 .fillMaxWidth(),
@@ -304,14 +339,17 @@ fun ChatMessageItem(
                 },
                 overlineContent = if (message.isDecryptedMessage) {
                     {
-                       Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                           Icon(
-                               imageVector = Icons.Rounded.LockOpen,
-                               contentDescription = null,
-                               modifier = Modifier.size(12.dp)
-                           )
-                           Text(stringResource(R.string.decrypted))
-                       }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.LockOpen,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(stringResource(R.string.decrypted))
+                        }
                     }
                 } else null,
                 trailingContent = {
@@ -397,5 +435,21 @@ private fun MenuOption(
                 }
             )
         }
+    }
+}
+
+
+@Composable
+@Preview
+fun MessageComposerPreview() {
+    var message by remember { mutableStateOf("") }
+
+    ChatGuardTheme {
+        MessageComposer(
+            messageText = message,
+            onValueChange = { message = it },
+            onCloseComposer = {},
+            onSend = {}
+        )
     }
 }

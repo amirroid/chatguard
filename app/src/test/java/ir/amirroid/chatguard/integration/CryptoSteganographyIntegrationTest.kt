@@ -262,4 +262,139 @@ class CryptoSteganographyIntegrationTest {
 
         assertTrue(result.isFailure)
     }
+
+    @Test
+    fun `find maximum Persian message size that encrypts under 4096 characters`() = runTest {
+        corpusProvider.load().getOrThrow()
+
+        val alice = keyManager.generateIdentityKeyPair().getOrThrow()
+        val bob = keyManager.generateIdentityKeyPair().getOrThrow()
+
+        val persianTexts = listOf(
+            "در دنیای امروز، امنیت اطلاعات یکی از مهم‌ترین دغدغه‌های بشر است. ",
+            "زمانی که خورشید از پشت کوه‌های البرز طلوع می‌کند، نور طلایی آن تمام دشت را فرا می‌گیرد. ",
+            "تکنولوژی رمزنگاری پیشرفت‌های چشمگیری در سال‌های اخیر داشته و امنیت بیشتری را فراهم کرده است. ",
+            "شعر و ادبیات فارسی یکی از غنی‌ترین میراث‌های فرهنگی ایران زمین محسوب می‌شود که قرن‌ها الهام‌بخش بوده است. ",
+            "علم و دانش همواره کلید پیشرفت جوامع بشری بوده و خواهد بود، چرا که بدون دانش نمی‌توان به تکامل رسید. "
+        )
+
+        println("\n${"=".repeat(100)}")
+        println("Testing Maximum Persian Message Size (Target: Poetic Output < 4096 chars)")
+        println("=".repeat(100))
+
+        val results = mutableListOf<SizeTestResult>()
+        val testSizes = listOf(50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000)
+
+        persianTexts.forEachIndexed { textIndex, baseText ->
+            println("\nBase Text ${textIndex + 1}: ${baseText.take(50)}...")
+            println("-".repeat(100))
+
+            testSizes.forEach { targetSize ->
+                val message = buildString {
+                    while (length < targetSize) {
+                        append(baseText)
+                    }
+                }.take(targetSize)
+
+                try {
+                    val envelope = cryptoOrchestrator.encryptMessage(
+                        plaintext = message.toByteArray(),
+                        myIdentityPrivateKey = alice.privateKey,
+                        myIdentityPublicKey = alice.publicKey,
+                        theirIdentityPublicKey = bob.publicKey
+                    ).getOrThrow()
+
+                    val envelopeBytes = CryptoEnvelopeSerializer.serialize(envelope)
+                    val poeticText = poeticEncoder.encode(envelopeBytes).getOrThrow()
+
+                    val poeticLength = poeticText.length
+                    val isUnderLimit = poeticLength < 4096
+                    val status = if (isUnderLimit) "PASS" else "FAIL"
+
+                    results.add(
+                        SizeTestResult(
+                            textId = textIndex + 1,
+                            originalLength = message.length,
+                            encryptedBytes = envelopeBytes.size,
+                            poeticLength = poeticLength,
+                            ratio = poeticLength.toDouble() / message.length,
+                            isUnderLimit = isUnderLimit
+                        )
+                    )
+
+                    println("Original: %4d | Encrypted: %5d bytes | Poetic: %4d chars | Ratio: %.2fx | %s".format(
+                        message.length,
+                        envelopeBytes.size,
+                        poeticLength,
+                        poeticLength.toDouble() / message.length,
+                        status
+                    ))
+
+                } catch (e: Exception) {
+                    println("Original: %4d | ERROR: ${e.message}".format(targetSize))
+                }
+            }
+        }
+
+        println("\n${"=".repeat(100)}")
+        println("RESULTS SUMMARY")
+        println("=".repeat(100))
+
+        val validResults = results.filter { it.isUnderLimit }
+        val maxValidResult = validResults.maxByOrNull { it.originalLength }
+
+        println("\nTotal Tests: ${results.size}")
+        println("Passed (< 4096): ${validResults.size}")
+        println("Failed (>= 4096): ${results.size - validResults.size}")
+
+        println("\nMAXIMUM ALLOWED MESSAGE SIZE:")
+        maxValidResult?.let {
+            println("  Original Length: ${it.originalLength} chars")
+            println("  Encrypted Size: ${it.encryptedBytes} bytes")
+            println("  Poetic Output: ${it.poeticLength} chars")
+            println("  Inflation Ratio: %.2fx".format(it.ratio))
+            println("  Usage: %.2f%%".format((it.poeticLength.toDouble() / 4096) * 100))
+        }
+
+        val closestResult = validResults.maxByOrNull { it.poeticLength }
+        println("\nCLOSEST TO LIMIT (4096):")
+        closestResult?.let {
+            println("  Original Length: ${it.originalLength} chars")
+            println("  Poetic Output: ${it.poeticLength} chars")
+            println("  Remaining: ${4096 - it.poeticLength} chars")
+        }
+
+        val avgRatio = validResults.map { it.ratio }.average()
+        println("\nAverage Inflation Ratio: %.2fx".format(avgRatio))
+
+        println("\n${"=".repeat(100)}")
+        println("PER BASE TEXT SUMMARY:")
+        println("=".repeat(100))
+
+        persianTexts.indices.forEach { textIndex ->
+            val textResults = results.filter { it.textId == textIndex + 1 && it.isUnderLimit }
+            val maxForThisText = textResults.maxByOrNull { it.originalLength }
+
+            if (maxForThisText != null) {
+                println("\nText ${textIndex + 1}:")
+                println("  Max Original: ${maxForThisText.originalLength} chars")
+                println("  Poetic Output: ${maxForThisText.poeticLength} chars")
+                println("  Ratio: %.2fx".format(maxForThisText.ratio))
+            }
+        }
+
+        println("\n${"=".repeat(100)}")
+        println("FINAL RESULT: Maximum Persian message size = ${maxValidResult?.originalLength} chars")
+        println("              Results in ${maxValidResult?.poeticLength} poetic chars")
+        println("=".repeat(100))
+    }
+
+    data class SizeTestResult(
+        val textId: Int,
+        val originalLength: Int,
+        val encryptedBytes: Int,
+        val poeticLength: Int,
+        val ratio: Double,
+        val isUnderLimit: Boolean
+    )
 }

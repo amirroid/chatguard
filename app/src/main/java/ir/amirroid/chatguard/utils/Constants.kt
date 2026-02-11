@@ -13,4 +13,6 @@ object Constants {
     const val CRASH_DATA_KEY = "crash_data"
 
     const val REPOSITORY_URL = "https://github.com/amirroid/chatguard"
+
+    const val MAX_SEND_MESSAGE_SIZE = 600
 }

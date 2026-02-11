@@ -20,6 +20,7 @@ import ir.amirroid.chatguard.domain.usecase.steganography_crypto.GetPoeticSigned
 import ir.amirroid.chatguard.domain.usecase.steganography_crypto.PoeticMessageDecryptionUseCase
 import ir.amirroid.chatguard.domain.usecase.steganography_crypto.PoeticMessageEncryptionUseCase
 import ir.amirroid.chatguard.domain.usecase.steganography_crypto.VerifyPoeticPublicKeyUseCase
+import ir.amirroid.chatguard.utils.Constants.MAX_SEND_MESSAGE_SIZE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,16 +82,16 @@ class WebFrameViewModel(
         currentUsername = userInfo.username
 
         getPublicKeyUseCase(userInfo.username, platform.packageName).onSuccess {
-                _events.send(WebFrameEvent.ClearInfoMessage)
-            }.onFailure {
-                _events.send(
-                    WebFrameEvent.ShowInfoMessageResource(
-                        R.string.encryption_key_was_not_found, InfoMessageType.ERROR
-                    )
+            _events.send(WebFrameEvent.ClearInfoMessage)
+        }.onFailure {
+            _events.send(
+                WebFrameEvent.ShowInfoMessageResource(
+                    R.string.encryption_key_was_not_found, InfoMessageType.ERROR
                 )
-            }.also { result ->
-                _userPublicKey.value = result
-            }
+            )
+        }.also { result ->
+            _userPublicKey.value = result
+        }
     }
 
     fun onPageLoaded() {
@@ -188,10 +189,10 @@ class WebFrameViewModel(
     private fun startTaskProcessor() {
         viewModelScope.launch(Dispatchers.IO) {
             taskQueue.consumeAsFlow().collect { task ->
-                    launch(Dispatchers.IO) {
-                        processMessageTask(task)
-                    }
+                launch(Dispatchers.IO) {
+                    processMessageTask(task)
                 }
+            }
         }
     }
 
@@ -239,9 +240,13 @@ class WebFrameViewModel(
         lastSendMessageTime = now
 
         _userPublicKey.filterNotNull().firstOrNull()?.onSuccess { key ->
+            if (message.length > MAX_SEND_MESSAGE_SIZE) {
+                _events.send(WebFrameEvent.ShowToast(R.string.message_limit_text))
+                return@launch
+            }
             encryptionUseCase(message, key).onSuccess { encryptedMessage ->
-                    _events.send(WebFrameEvent.SendMessage(encryptedMessage))
-                }
+                _events.send(WebFrameEvent.SendMessage(encryptedMessage))
+            }
         }?.onFailure {
             _events.send(WebFrameEvent.SendMessage(message))
         }
@@ -254,8 +259,8 @@ class WebFrameViewModel(
             when (data.buttonType) {
                 ButtonType.CHOOSE_KEY -> {
                     getPoeticPublicKeyUseCase(messageResult.realMessage).onSuccess { publicKey ->
-                            savePublicKey(publicKey)
-                        }
+                        savePublicKey(publicKey)
+                    }
                 }
             }
         }
