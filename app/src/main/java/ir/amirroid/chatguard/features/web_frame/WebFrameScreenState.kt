@@ -6,4 +6,5 @@ import androidx.compose.ui.graphics.Color
 @Immutable
 data class WebFrameScreenState(
     val backgroundColor: Color = Color.Transparent,
+    var isSendPlainTextConfirmation: Boolean = false
 )

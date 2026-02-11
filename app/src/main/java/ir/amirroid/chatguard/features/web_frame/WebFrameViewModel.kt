@@ -64,6 +64,9 @@ class WebFrameViewModel(
     private val platform = savedStateHandle.get<MessengerPlatform>("platform")!!
     private val _userPublicKey = MutableStateFlow<Result<CryptoKey>?>(null)
 
+    private var confirmedSendPlainText = false
+    private var lastSendMessageRequestText: String? = null
+
     private var lastSendMessageTime = 0L
 
     init {
@@ -96,6 +99,8 @@ class WebFrameViewModel(
 
     fun onPageLoaded() {
         loadsCount++
+        confirmedSendPlainText = false
+        lastSendMessageRequestText = null
         reapplyResults()
     }
 
@@ -248,8 +253,21 @@ class WebFrameViewModel(
                 _events.send(WebFrameEvent.SendMessage(encryptedMessage))
             }
         }?.onFailure {
+            if (!confirmedSendPlainText) {
+                lastSendMessageRequestText = message
+                _state.update { it.copy(isSendPlainTextConfirmation = true) }
+                return@launch
+            }
             _events.send(WebFrameEvent.SendMessage(message))
         }
+    }
+
+    fun closeConfirmSendPlainText(confirmed: Boolean) {
+        confirmedSendPlainText = confirmed
+        if (confirmed) {
+            lastSendMessageRequestText?.also(::handleSendMessage)
+        }
+        _state.update { it.copy(isSendPlainTextConfirmation = false) }
     }
 
     fun handleButtonClick(data: ButtonClickData) {

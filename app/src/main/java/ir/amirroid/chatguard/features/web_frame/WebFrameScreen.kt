@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -235,4 +237,43 @@ fun WebFrameScreen(
             onBack.invoke()
         }
     }
+
+    if (screenState.isSendPlainTextConfirmation) {
+        ConfirmSendPlainTextDialog(
+            onConfirm = {
+                viewModel.closeConfirmSendPlainText(true)
+            },
+            onDismiss = {
+                viewModel.closeConfirmSendPlainText(false)
+            }
+        )
+    }
+}
+
+@Composable
+fun ConfirmSendPlainTextDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = stringResource(R.string.warning))
+        },
+        text = {
+            Text(
+                text = stringResource(R.string.send_plain_text_warning)
+            )
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(text = stringResource(R.string.confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(R.string.cancel))
+            }
+        }
+    )
 }
