@@ -3,6 +3,7 @@ package ir.amirroid.chatguard
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import ir.amirroid.chatguard.core.exception.GlobalExceptionHandler
 import ir.amirroid.chatguard.core.initializer.abstraction.StartupInitializer
@@ -35,14 +36,16 @@ class ChatGuardApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        NotificationManagerCompat.from(this)
-            .createNotificationChannel(
-                NotificationChannel(
-                    Constants.CHANNEL_ID,
-                    "برای استفاده از بکگراند",
-                    NotificationManager.IMPORTANCE_DEFAULT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManagerCompat.from(this)
+                .createNotificationChannel(
+                    NotificationChannel(
+                        Constants.CHANNEL_ID,
+                        "برای استفاده از بکگراند",
+                        NotificationManager.IMPORTANCE_DEFAULT
+                    )
                 )
-            )
+        }
 
         if (!BuildConfig.DEBUG) setupGlobalExceptionHandler()
 
