@@ -3,12 +3,13 @@ package ir.amirroid.chatguard.core.messanger.implementation
 import android.os.Build
 import android.os.Bundle
 import android.view.accessibility.AccessibilityNodeInfo
-import android.widget.EditText
-import androidx.recyclerview.widget.RecyclerView
 import ir.amirroid.chatguard.core.messanger.abstraction.MessengerNodeReader
 import ir.amirroid.chatguard.core.messanger.models.ChatMessage
 import ir.amirroid.chatguard.core.messanger.models.MessageSender
 import ir.amirroid.chatguard.core.messanger.models.MessengerPlatform
+import ir.amirroid.chatguard.core.messanger.utils.isEditText
+import ir.amirroid.chatguard.core.messanger.utils.isRecyclerView
+import ir.amirroid.chatguard.core.messanger.utils.isView
 
 class SoroushMessengerNodeReader : MessengerNodeReader {
     override val platform: MessengerPlatform = MessengerPlatform.SOROUSH
@@ -62,7 +63,7 @@ class SoroushMessengerNodeReader : MessengerNodeReader {
     private fun findSendButton(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
         node ?: return null
 
-        if (node.className == "android.view.View") {
+        if (node.isView()) {
             val contentDesc = node.contentDescription?.toString()
             if (contentDesc in SEND_BUTTON_DESCRIPTIONS && node.isClickable) {
                 return node
@@ -80,7 +81,7 @@ class SoroushMessengerNodeReader : MessengerNodeReader {
     private fun findRecyclerView(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
         node ?: return null
 
-        if (node.className == RecyclerView::class.java.name) {
+        if (node.isRecyclerView()) {
             return node
         }
 
@@ -107,7 +108,7 @@ class SoroushMessengerNodeReader : MessengerNodeReader {
             val child2 = child0.getChild(2) ?: return null
             val child1 = child2.getChild(1) ?: return null
 
-            if (child1.className == EditText::class.java.name) {
+            if (child1.isEditText()) {
                 return child1
             }
         } catch (_: Exception) {
@@ -120,7 +121,7 @@ class SoroushMessengerNodeReader : MessengerNodeReader {
     private fun findMessageInputFieldRecursive(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
         node ?: return null
 
-        if (node.className == EditText::class.java.name) {
+        if (node.isEditText()) {
             val text = node.text?.toString()
             val hintText = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 node.hintText?.toString()

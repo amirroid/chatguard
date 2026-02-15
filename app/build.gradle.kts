@@ -2,7 +2,6 @@ import io.github.reactivecircus.appversioning.toSemVer
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.ksp)
@@ -44,19 +43,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            if (keyStoreFile == null) {
-                signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keyStoreFile == null) {
+                signingConfigs.getByName("debug")
             } else {
-                signingConfig = signingConfigs.getByName("release")
+                signingConfigs.getByName("release")
             }
         }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-    kotlinOptions {
-        jvmTarget = "11"
     }
     buildFeatures {
         compose = true
@@ -88,7 +84,6 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.core.ktx)
     implementation(libs.androidx.appcompat)
-    implementation(libs.material)
     implementation(libs.androidx.activity)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

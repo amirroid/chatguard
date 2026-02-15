@@ -2,12 +2,14 @@ package ir.amirroid.chatguard.core.messanger.implementation
 
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
-import android.widget.EditText
 import ir.amirroid.chatguard.core.messanger.abstraction.MessengerNodeReader
 import ir.amirroid.chatguard.core.messanger.models.ChatMessage
 import ir.amirroid.chatguard.core.messanger.models.MessageSender
 import ir.amirroid.chatguard.core.messanger.models.MessengerPlatform
+import ir.amirroid.chatguard.core.messanger.utils.isEditText
+import ir.amirroid.chatguard.core.messanger.utils.isView
 
 class EitaaMessengerNodeReader : MessengerNodeReader {
     override val platform: MessengerPlatform = MessengerPlatform.EITAA
@@ -59,7 +61,7 @@ class EitaaMessengerNodeReader : MessengerNodeReader {
     private fun findSendButton(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
         node ?: return null
 
-        if (node.className == "android.view.View") {
+        if (node.isView()) {
             val contentDesc = node.contentDescription?.toString()
             if (contentDesc in SEND_BUTTON_DESCRIPTIONS && node.isClickable) {
                 return node
@@ -77,7 +79,7 @@ class EitaaMessengerNodeReader : MessengerNodeReader {
     private fun findEditText(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
         node ?: return null
 
-        if (node.className == EditText::class.java.name) {
+        if (node.isEditText()) {
             val hintTextValidate =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     node.hintText?.toString() in SEND_MESSAGE_EDIT_TEXT_HINTS
@@ -124,6 +126,7 @@ class EitaaMessengerNodeReader : MessengerNodeReader {
         if (lines.size < 2) return false
 
         val lastLine = lines.last()
+        Log.d("sadasdsadsa", "isMessageNode: $lastLine")
         return hasTimePattern(lastLine) && hasStatusPattern(lastLine)
     }
 
@@ -142,12 +145,15 @@ class EitaaMessengerNodeReader : MessengerNodeReader {
         val content = node.contentDescription?.toString() ?: return null
         val lines = content.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
+        Log.d("sadasdsadsa", "extractChatMessage: $content")
         if (lines.size < 2) return null
 
         val lastLine = lines.last()
         val time = extractTime(lastLine) ?: return null
         val sender = determineSender(lastLine)
         val text = extractMessageText(node, lines)
+
+        Log.d("sadasdsadsa", "extractChatMessage: $text")
 
         return ChatMessage(
             text = text,
@@ -241,9 +247,10 @@ class EitaaMessengerNodeReader : MessengerNodeReader {
 
     companion object {
         private val TIME_PATTERNS = listOf(
-            "at (\\d{2}:\\d{2})".toRegex(),
-            "\u202Aدر ([۰-۹٠-٩\\d]{2}:[۰-۹٠-٩\\d]{2})\u202C".toRegex(),
-            "در ([۰-۹٠-٩\\d]{2}:[۰-۹٠-٩\\d]{2})".toRegex()
+            "at (\\d{1,2}:\\d{2}\\s*(?:AM|PM|am|pm)?)".toRegex(),
+            "\u202Aدر ([۰-۹٠-٩\\d]{1,2}:[۰-۹٠-٩\\d]{2})\u202C".toRegex(),
+            "در ([۰-۹٠-٩\\d]{1,2}:[۰-۹٠-٩\\d]{2})".toRegex(),
+            "در ([۰-۹٠-٩\\d]{1,2}:[۰-۹٠-٩\\d]{2})\\s*(?:قبل‌ازظهر|بعدازظهر|قبل از ظهر|بعد از ظهر)?".toRegex()
         )
 
         private val LINK_MARKERS = setOf("Link", "لینک")
