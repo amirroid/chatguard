@@ -270,7 +270,8 @@ private fun AccessibilityServiceCard(
                     expanded = isExpanded,
                     onClick = onExpandToggle
                 )
-            }
+            },
+            modifier = Modifier.clickable(onClick = onExpandToggle)
         )
 
         AnimatedVisibility(visible = isExpanded) {
@@ -306,7 +307,8 @@ private fun SettingsCard(
                     expanded = isExpanded,
                     onClick = onExpandToggle
                 )
-            }
+            },
+            modifier = Modifier.clickable(onClick = onExpandToggle)
         )
 
         AnimatedVisibility(visible = isExpanded) {
