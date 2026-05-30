@@ -1,10 +1,8 @@
 package ir.amirroid.chatguard.integration
 
 import ir.amirroid.chatguard.FileUtils
-import ir.amirroid.chatguard.core.crypto.abstraction.CipherEngine
 import ir.amirroid.chatguard.core.crypto.abstraction.CryptoOrchestrator
 import ir.amirroid.chatguard.core.crypto.abstraction.KeyManager
-import ir.amirroid.chatguard.core.crypto.abstraction.SharedSecretDeriver
 import ir.amirroid.chatguard.core.crypto.abstraction.SignatureValidator
 import ir.amirroid.chatguard.core.crypto.implementation.AesGcmCipherEngine
 import ir.amirroid.chatguard.core.crypto.implementation.DefaultCryptoOrchestrator
@@ -28,12 +26,10 @@ import org.junit.Before
 import org.junit.Test
 
 class FullFlowCryptoSteganographyTest {
-    private lateinit var keyManager: KeyManager
-    private lateinit var cipherEngine: CipherEngine
-    private lateinit var signatureValidator: SignatureValidator
-    private lateinit var secretDeriver: SharedSecretDeriver
-    private lateinit var cryptoOrchestrator: CryptoOrchestrator
 
+    private lateinit var keyManager: KeyManager
+    private lateinit var signatureValidator: SignatureValidator
+    private lateinit var cryptoOrchestrator: CryptoOrchestrator
     private lateinit var corpusProvider: CorpusProvider
     private lateinit var poeticEncoder: PoeticEncoder
     private lateinit var poeticDecoder: PoeticDecoder
@@ -41,15 +37,13 @@ class FullFlowCryptoSteganographyTest {
     @Before
     fun setup() {
         keyManager = EcdhKeyManager()
-        cipherEngine = AesGcmCipherEngine()
         signatureValidator = EcdsaSignatureValidator()
-        secretDeriver = HkdfSecretDeriver()
         cryptoOrchestrator = DefaultCryptoOrchestrator(
-            keyManager, cipherEngine, signatureValidator, secretDeriver
+            cipherEngine = AesGcmCipherEngine(),
+            secretDeriver = HkdfSecretDeriver(),
         )
 
         val wordsBytes = FileUtils.getWordsBytes()
-
         corpusProvider = CachedCorpusProvider(ByteArrayFileSource(wordsBytes))
         poeticEncoder = WordBasedEncoder(corpusProvider)
         poeticDecoder = WordBasedDecoder(corpusProvider)
@@ -61,68 +55,53 @@ class FullFlowCryptoSteganographyTest {
 
         val alice = keyManager.generateIdentityKeyPair().getOrThrow()
         val bob = keyManager.generateIdentityKeyPair().getOrThrow()
-
         val message = "سلام! این یک پیام محرمانه است."
 
-        val signature = signatureValidator.sign(
-            bob.privateKey,
-            bob.publicKey.encoded
-        ).getOrThrow()
-
-        val signedPublicKey = SignedPublicKey(
+        val bobSignedKey = SignedPublicKey(
             publicKey = bob.publicKey.encoded,
-            signature = signature
+            signature = signatureValidator.sign(bob.privateKey, bob.publicKey.encoded).getOrThrow(),
         )
-
-        val signedKeyBytes = SignedPublicKeySerializer.serialize(signedPublicKey)
-        val poeticText = poeticEncoder.encode(signedKeyBytes).getOrThrow()
-
-        val decodedBytes = poeticDecoder.decode(poeticText).getOrThrow()
-        val decodedSignedKey = SignedPublicKeySerializer.deserialize(decodedBytes)
-
-        val reconstructedBobPublicKey = keyManager
-            .reconstructPublicKey(decodedSignedKey.publicKey)
-            .getOrThrow()
-
-        val isValid = signatureValidator.verify(
-            reconstructedBobPublicKey,
-            decodedSignedKey.publicKey,
-            decodedSignedKey.signature
-        ).getOrThrow()
-
-        assertTrue(isValid)
+        val decodedBobKey = SignedPublicKeySerializer.deserialize(
+            poeticDecoder.decode(poeticEncoder.encode(SignedPublicKeySerializer.serialize(bobSignedKey)).getOrThrow()).getOrThrow(),
+        )
+        val bobPublicKey = keyManager.reconstructPublicKey(decodedBobKey.publicKey).getOrThrow()
+        assertTrue(
+            signatureValidator.verify(bobPublicKey, decodedBobKey.publicKey, decodedBobKey.signature).getOrThrow(),
+        )
 
         val envelope = cryptoOrchestrator.encryptMessage(
             message.toByteArray(),
             alice.privateKey,
             alice.publicKey,
-            reconstructedBobPublicKey,
+            bobPublicKey,
         ).getOrThrow()
 
-        val envelopeBytes = CryptoEnvelopeSerializer.serialize(envelope)
-        val poeticEnvelope = poeticEncoder.encode(envelopeBytes).getOrThrow()
+        val decodedEnvelope = CryptoEnvelopeSerializer.deserialize(
+            poeticDecoder.decode(
+                poeticEncoder.encode(CryptoEnvelopeSerializer.serialize(envelope)).getOrThrow(),
+            ).getOrThrow(),
+        )
 
-        val decodedEnvelopeBytes = poeticDecoder.decode(poeticEnvelope).getOrThrow()
-        val decodedEnvelope = CryptoEnvelopeSerializer.deserialize(decodedEnvelopeBytes)
-
-        val decrypted = cryptoOrchestrator.decryptMessage(
-            decodedEnvelope,
-            bob.privateKey,
-            bob.publicKey,
-            alice.publicKey,
-            false
-        ).getOrThrow()
-
-        assertEquals(message, String(decrypted))
+        assertEquals(
+            message,
+            String(
+                cryptoOrchestrator.decryptMessage(
+                    decodedEnvelope,
+                    bob.privateKey,
+                    bob.publicKey,
+                    alice.publicKey,
+                    iAmSender = false,
+                ).getOrThrow(),
+            ),
+        )
     }
 
     @Test
-    fun `full flow encrypt decrypt long message using signed poetic public key`() = runTest {
+    fun `full flow long message and sender re-read`() = runTest {
         corpusProvider.load().getOrThrow()
 
         val alice = keyManager.generateIdentityKeyPair().getOrThrow()
         val bob = keyManager.generateIdentityKeyPair().getOrThrow()
-
         val message = buildString {
             repeat(2000) {
                 append("This is a long test message number $it. ")
@@ -130,64 +109,54 @@ class FullFlowCryptoSteganographyTest {
             }
         }
 
-        val signature = signatureValidator.sign(
-            bob.privateKey,
-            bob.publicKey.encoded
+        val bobSignedKey = SignedPublicKey(
+            publicKey = bob.publicKey.encoded,
+            signature = signatureValidator.sign(bob.privateKey, bob.publicKey.encoded).getOrThrow(),
+        )
+        val bobPublicKey = keyManager.reconstructPublicKey(
+            SignedPublicKeySerializer.deserialize(
+                poeticDecoder.decode(poeticEncoder.encode(SignedPublicKeySerializer.serialize(bobSignedKey)).getOrThrow()).getOrThrow(),
+            ).publicKey,
         ).getOrThrow()
 
-        val signedPublicKey = SignedPublicKey(
-            publicKey = bob.publicKey.encoded,
-            signature = signature
+        val decodedEnvelope = CryptoEnvelopeSerializer.deserialize(
+            poeticDecoder.decode(
+                poeticEncoder.encode(
+                    CryptoEnvelopeSerializer.serialize(
+                        cryptoOrchestrator.encryptMessage(
+                            message.toByteArray(),
+                            alice.privateKey,
+                            alice.publicKey,
+                            bobPublicKey,
+                        ).getOrThrow(),
+                    ),
+                ).getOrThrow(),
+            ).getOrThrow(),
         )
 
-        val signedKeyBytes = SignedPublicKeySerializer.serialize(signedPublicKey)
-        val poeticText = poeticEncoder.encode(signedKeyBytes).getOrThrow()
-
-        val decodedBytes = poeticDecoder.decode(poeticText).getOrThrow()
-        val decodedSignedKey = SignedPublicKeySerializer.deserialize(decodedBytes)
-
-        val reconstructedBobPublicKey = keyManager
-            .reconstructPublicKey(decodedSignedKey.publicKey)
-            .getOrThrow()
-
-        val isValid = signatureValidator.verify(
-            reconstructedBobPublicKey,
-            decodedSignedKey.publicKey,
-            decodedSignedKey.signature
-        ).getOrThrow()
-
-        assertTrue(isValid)
-
-        val envelope = cryptoOrchestrator.encryptMessage(
-            message.toByteArray(),
-            alice.privateKey,
-            alice.publicKey,
-            reconstructedBobPublicKey,
-        ).getOrThrow()
-
-        val envelopeBytes = CryptoEnvelopeSerializer.serialize(envelope)
-        val poeticEnvelope = poeticEncoder.encode(envelopeBytes).getOrThrow()
-
-        val decodedEnvelopeBytes = poeticDecoder.decode(poeticEnvelope).getOrThrow()
-        val decodedEnvelope = CryptoEnvelopeSerializer.deserialize(decodedEnvelopeBytes)
-
-        val decrypted = cryptoOrchestrator.decryptMessage(
-            decodedEnvelope,
-            bob.privateKey,
-            bob.publicKey,
-            alice.publicKey,
-            false
-        ).getOrThrow()
-
-        val myDecrypted = cryptoOrchestrator.decryptMessage(
-            decodedEnvelope,
-            alice.privateKey,
-            alice.publicKey,
-            bob.publicKey,
-            true
-        ).getOrThrow()
-
-        assertEquals(message, String(decrypted))
-        assertEquals(message, String(myDecrypted))
+        assertEquals(
+            message,
+            String(
+                cryptoOrchestrator.decryptMessage(
+                    decodedEnvelope,
+                    bob.privateKey,
+                    bob.publicKey,
+                    alice.publicKey,
+                    iAmSender = false,
+                ).getOrThrow(),
+            ),
+        )
+        assertEquals(
+            message,
+            String(
+                cryptoOrchestrator.decryptMessage(
+                    decodedEnvelope,
+                    alice.privateKey,
+                    alice.publicKey,
+                    bob.publicKey,
+                    iAmSender = true,
+                ).getOrThrow(),
+            ),
+        )
     }
 }

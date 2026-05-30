@@ -2,11 +2,13 @@ package ir.amirroid.chatguard.crypto
 
 import ir.amirroid.chatguard.core.crypto.abstraction.CryptoOrchestrator
 import ir.amirroid.chatguard.core.crypto.abstraction.KeyManager
-import ir.amirroid.chatguard.core.crypto.implementation.*
+import ir.amirroid.chatguard.core.crypto.implementation.AesGcmCipherEngine
+import ir.amirroid.chatguard.core.crypto.implementation.DefaultCryptoOrchestrator
+import ir.amirroid.chatguard.core.crypto.implementation.EcdhKeyManager
+import ir.amirroid.chatguard.core.crypto.implementation.HkdfSecretDeriver
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -19,57 +21,9 @@ class CryptoOrchestratorTest {
     @Before
     fun setup() {
         keyManager = EcdhKeyManager()
-        val cipherEngine = AesGcmCipherEngine()
-        val signatureValidator = EcdsaSignatureValidator()
-        val secretDeriver = HkdfSecretDeriver()
-
         orchestrator = DefaultCryptoOrchestrator(
-            keyManager,
-            cipherEngine,
-            signatureValidator,
-            secretDeriver
-        )
-    }
-
-    @Test
-    fun `decryption should fail with tampered signature`() = runTest {
-        val aliceIdentity = keyManager.generateIdentityKeyPair().getOrThrow()
-        val bobIdentity = keyManager.generateIdentityKeyPair().getOrThrow()
-        val originalMessage = "Test message".toByteArray()
-
-        val envelope = orchestrator.encryptMessage(
-            originalMessage,
-            aliceIdentity.privateKey,
-            aliceIdentity.publicKey,
-            bobIdentity.publicKey
-        ).getOrThrow()
-
-        // Tamper with signature
-        val tamperedEnvelope = envelope.copy(
-            receiverSignature = ByteArray(envelope.receiverSignature.size) { 0 }
-        )
-
-        val result = orchestrator.decryptMessage(
-            tamperedEnvelope,
-            bobIdentity.privateKey,
-            bobIdentity.publicKey,
-            aliceIdentity.publicKey,
-            false
-        )
-
-        // Should fail with SecurityException
-        assertTrue("Result should be failure", result.isFailure)
-        val exception = result.exceptionOrNull()
-        assertNotNull("Exception should not be null", exception)
-
-        // Check that it's wrapped as SecurityException
-        assertTrue(
-            "Expected SecurityException but got ${exception?.javaClass?.simpleName}: ${exception?.message}",
-            exception is SecurityException
-        )
-        assertTrue(
-            "Exception message should mention signature verification",
-            exception?.message?.contains("Signature verification failed", ignoreCase = true) == true
+            cipherEngine = AesGcmCipherEngine(),
+            secretDeriver = HkdfSecretDeriver(),
         )
     }
 
@@ -83,12 +37,11 @@ class CryptoOrchestratorTest {
             originalMessage,
             aliceIdentity.privateKey,
             aliceIdentity.publicKey,
-            bobIdentity.publicKey
+            bobIdentity.publicKey,
         ).getOrThrow()
 
-        // Tamper with ciphertext (signature is still valid)
         val tamperedEnvelope = envelope.copy(
-            ciphertext = ByteArray(envelope.ciphertext.size) { 0 }
+            ciphertext = ByteArray(envelope.ciphertext.size) { 0 },
         )
 
         val result = orchestrator.decryptMessage(
@@ -96,11 +49,10 @@ class CryptoOrchestratorTest {
             bobIdentity.privateKey,
             bobIdentity.publicKey,
             aliceIdentity.publicKey,
-            false
+            iAmSender = false,
         )
 
-        // Should fail during AEAD decryption (tag mismatch)
-        assertTrue("Result should be failure", result.isFailure)
+        assertTrue(result.isFailure)
     }
 
     @Test
@@ -113,12 +65,11 @@ class CryptoOrchestratorTest {
             originalMessage,
             aliceIdentity.privateKey,
             aliceIdentity.publicKey,
-            bobIdentity.publicKey
+            bobIdentity.publicKey,
         ).getOrThrow()
 
-        // Tamper with nonce
         val tamperedEnvelope = envelope.copy(
-            nonce = ByteArray(envelope.nonce.size) { 0 }
+            nonce = ByteArray(envelope.nonce.size) { 0 },
         )
 
         val result = orchestrator.decryptMessage(
@@ -126,41 +77,33 @@ class CryptoOrchestratorTest {
             bobIdentity.privateKey,
             bobIdentity.publicKey,
             aliceIdentity.publicKey,
-            false
+            iAmSender = false,
         )
 
-        // Should fail during AEAD decryption
-        assertTrue("Result should be failure", result.isFailure)
+        assertTrue(result.isFailure)
     }
 
     @Test
     fun `full encryption and decryption flow should work`() = runTest {
         val aliceIdentity = keyManager.generateIdentityKeyPair().getOrThrow()
         val bobIdentity = keyManager.generateIdentityKeyPair().getOrThrow()
-
         val originalMessage = "سلام! این یک پیام رمزنگاری شده است.".toByteArray()
 
-        // Alice encrypts for Bob
         val envelope = orchestrator.encryptMessage(
             originalMessage,
             aliceIdentity.privateKey,
             aliceIdentity.publicKey,
-            bobIdentity.publicKey
+            bobIdentity.publicKey,
         ).getOrThrow()
 
-        println(envelope.ciphertext)
-
-        // Bob decrypts from Alice
-        val decryptResult = orchestrator.decryptMessage(
+        val decryptedMessage = orchestrator.decryptMessage(
             envelope,
             bobIdentity.privateKey,
             bobIdentity.publicKey,
             aliceIdentity.publicKey,
-            false
-        )
+            iAmSender = false,
+        ).getOrThrow()
 
-        assertTrue("Decryption should succeed", decryptResult.isSuccess)
-        val decryptedMessage = decryptResult.getOrThrow()
         assertArrayEquals(originalMessage, decryptedMessage)
     }
 
@@ -174,7 +117,7 @@ class CryptoOrchestratorTest {
             message,
             aliceIdentity.privateKey,
             aliceIdentity.publicKey,
-            bobIdentity.publicKey
+            bobIdentity.publicKey,
         ).getOrThrow()
 
         val envelope2 = orchestrator.encryptMessage(
@@ -184,18 +127,13 @@ class CryptoOrchestratorTest {
             bobIdentity.publicKey,
         ).getOrThrow()
 
-        // Different ephemeral keys and nonces should produce different ciphertexts
         assertFalse(
-            "Ephemeral keys should be different",
-            envelope1.receiverEphemeralPublicKey.contentEquals(envelope2.receiverEphemeralPublicKey)
+            "Nonces should differ per message",
+            envelope1.nonce.contentEquals(envelope2.nonce),
         )
         assertFalse(
-            "Ciphertexts should be different",
-            envelope1.ciphertext.contentEquals(envelope2.ciphertext)
-        )
-        assertFalse(
-            "Nonces should be different",
-            envelope1.nonce.contentEquals(envelope2.nonce)
+            "Ciphertexts should differ",
+            envelope1.ciphertext.contentEquals(envelope2.ciphertext),
         )
     }
 
@@ -204,27 +142,24 @@ class CryptoOrchestratorTest {
         val aliceIdentity = keyManager.generateIdentityKeyPair().getOrThrow()
         val bobIdentity = keyManager.generateIdentityKeyPair().getOrThrow()
         val eveIdentity = keyManager.generateIdentityKeyPair().getOrThrow()
-
         val message = "Secret for Bob".toByteArray()
 
-        // Alice encrypts for Bob
         val envelope = orchestrator.encryptMessage(
             message,
             aliceIdentity.privateKey,
             aliceIdentity.publicKey,
-            bobIdentity.publicKey
+            bobIdentity.publicKey,
         ).getOrThrow()
 
-        // Eve tries to decrypt (should fail)
         val result = orchestrator.decryptMessage(
             envelope,
             eveIdentity.privateKey,
             eveIdentity.publicKey,
             aliceIdentity.publicKey,
-            false
+            iAmSender = false,
         )
 
-        assertTrue("Decryption should fail", result.isFailure)
+        assertTrue(result.isFailure)
     }
 
     @Test
@@ -237,31 +172,26 @@ class CryptoOrchestratorTest {
             originalMessage,
             aliceIdentity.privateKey,
             aliceIdentity.publicKey,
-            bobIdentity.publicKey
+            bobIdentity.publicKey,
         ).getOrThrow()
 
-        val aliceDecryptResult = orchestrator.decryptMessage(
+        val aliceDecrypted = orchestrator.decryptMessage(
             envelope,
             aliceIdentity.privateKey,
             aliceIdentity.publicKey,
             bobIdentity.publicKey,
-            iAmSender = true
-        )
+            iAmSender = true,
+        ).getOrThrow()
 
-        assertTrue("Alice should decrypt her own message", aliceDecryptResult.isSuccess)
-        val aliceDecrypted = aliceDecryptResult.getOrThrow()
-        assertArrayEquals(originalMessage, aliceDecrypted)
-
-        val bobDecryptResult = orchestrator.decryptMessage(
+        val bobDecrypted = orchestrator.decryptMessage(
             envelope,
             bobIdentity.privateKey,
             bobIdentity.publicKey,
             aliceIdentity.publicKey,
-            iAmSender = false
-        )
+            iAmSender = false,
+        ).getOrThrow()
 
-        assertTrue("Bob should also decrypt the message", bobDecryptResult.isSuccess)
-        val bobDecrypted = bobDecryptResult.getOrThrow()
+        assertArrayEquals(originalMessage, aliceDecrypted)
         assertArrayEquals(originalMessage, bobDecrypted)
     }
 }

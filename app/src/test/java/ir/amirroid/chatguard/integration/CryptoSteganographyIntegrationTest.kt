@@ -1,8 +1,14 @@
 package ir.amirroid.chatguard.integration
 
 import ir.amirroid.chatguard.FileUtils
-import ir.amirroid.chatguard.core.crypto.abstraction.*
-import ir.amirroid.chatguard.core.crypto.implementation.*
+import ir.amirroid.chatguard.core.crypto.abstraction.CipherEngine
+import ir.amirroid.chatguard.core.crypto.abstraction.CryptoOrchestrator
+import ir.amirroid.chatguard.core.crypto.abstraction.KeyManager
+import ir.amirroid.chatguard.core.crypto.abstraction.SharedSecretDeriver
+import ir.amirroid.chatguard.core.crypto.implementation.AesGcmCipherEngine
+import ir.amirroid.chatguard.core.crypto.implementation.DefaultCryptoOrchestrator
+import ir.amirroid.chatguard.core.crypto.implementation.EcdhKeyManager
+import ir.amirroid.chatguard.core.crypto.implementation.HkdfSecretDeriver
 import ir.amirroid.chatguard.core.crypto.util.CryptoEnvelopeSerializer
 import ir.amirroid.chatguard.core.file.implementation.ByteArrayFileSource
 import ir.amirroid.chatguard.core.steganography.abstraction.CorpusProvider
@@ -12,18 +18,16 @@ import ir.amirroid.chatguard.core.steganography.implementation.CachedCorpusProvi
 import ir.amirroid.chatguard.core.steganography.implementation.WordBasedDecoder
 import ir.amirroid.chatguard.core.steganography.implementation.WordBasedEncoder
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
 class CryptoSteganographyIntegrationTest {
 
     private lateinit var keyManager: KeyManager
-    private lateinit var cipherEngine: CipherEngine
-    private lateinit var signatureValidator: SignatureValidator
-    private lateinit var secretDeriver: SharedSecretDeriver
     private lateinit var cryptoOrchestrator: CryptoOrchestrator
-
     private lateinit var corpusProvider: CorpusProvider
     private lateinit var poeticEncoder: PoeticEncoder
     private lateinit var poeticDecoder: PoeticDecoder
@@ -31,15 +35,12 @@ class CryptoSteganographyIntegrationTest {
     @Before
     fun setup() {
         keyManager = EcdhKeyManager()
-        cipherEngine = AesGcmCipherEngine()
-        signatureValidator = EcdsaSignatureValidator()
-        secretDeriver = HkdfSecretDeriver()
         cryptoOrchestrator = DefaultCryptoOrchestrator(
-            keyManager, cipherEngine, signatureValidator, secretDeriver
+            cipherEngine = AesGcmCipherEngine(),
+            secretDeriver = HkdfSecretDeriver(),
         )
 
         val wordsBytes = FileUtils.getWordsBytes()
-
         corpusProvider = CachedCorpusProvider(ByteArrayFileSource(wordsBytes))
         poeticEncoder = WordBasedEncoder(corpusProvider)
         poeticDecoder = WordBasedDecoder(corpusProvider)
@@ -57,28 +58,30 @@ class CryptoSteganographyIntegrationTest {
             plaintext = message.toByteArray(),
             myIdentityPrivateKey = alice.privateKey,
             myIdentityPublicKey = alice.publicKey,
-            theirIdentityPublicKey = bob.publicKey
+            theirIdentityPublicKey = bob.publicKey,
         ).getOrThrow()
 
-        val envelopeBytes = CryptoEnvelopeSerializer.serialize(envelope)
-        val poeticText = poeticEncoder.encode(envelopeBytes).getOrThrow()
+        val poeticText = poeticEncoder.encode(CryptoEnvelopeSerializer.serialize(envelope)).getOrThrow()
 
-        val decodedBytes = poeticDecoder.decode(poeticText).getOrThrow()
-        val decodedEnvelope = CryptoEnvelopeSerializer.deserialize(decodedBytes)
+        println(poeticText)
+        println(poeticText.length)
+        println(message.length)
+
+        val decodedEnvelope = CryptoEnvelopeSerializer.deserialize(poeticDecoder.decode(poeticText).getOrThrow())
 
         val decrypted = cryptoOrchestrator.decryptMessage(
             envelope = decodedEnvelope,
             myIdentityPrivateKey = bob.privateKey,
             myIdentityPublicKey = bob.publicKey,
             theirIdentityPublicKey = alice.publicKey,
-            iAmSender = false
+            iAmSender = false,
         ).getOrThrow()
 
         assertEquals(message, String(decrypted))
     }
 
     @Test
-    fun `sender can decrypt own message`() = runTest {
+    fun `sender can decrypt own message after poetic round-trip`() = runTest {
         corpusProvider.load().getOrThrow()
 
         val alice = keyManager.generateIdentityKeyPair().getOrThrow()
@@ -89,38 +92,40 @@ class CryptoSteganographyIntegrationTest {
             plaintext = message.toByteArray(),
             myIdentityPrivateKey = alice.privateKey,
             myIdentityPublicKey = alice.publicKey,
-            theirIdentityPublicKey = bob.publicKey
-        ).getOrThrow()
-
-        val envelopeBytes = CryptoEnvelopeSerializer.serialize(envelope)
-        val poeticText = poeticEncoder.encode(envelopeBytes).getOrThrow()
-
-        val decodedBytes = poeticDecoder.decode(poeticText).getOrThrow()
-        val decodedEnvelope = CryptoEnvelopeSerializer.deserialize(decodedBytes)
-
-        val bobDecrypted = cryptoOrchestrator.decryptMessage(
-            envelope = decodedEnvelope,
-            myIdentityPrivateKey = bob.privateKey,
-            myIdentityPublicKey = bob.publicKey,
-            theirIdentityPublicKey = alice.publicKey,
-            iAmSender = false
-        ).getOrThrow()
-
-        assertEquals(message, String(bobDecrypted))
-
-        val aliceDecrypted = cryptoOrchestrator.decryptMessage(
-            envelope = decodedEnvelope,
-            myIdentityPrivateKey = alice.privateKey,
-            myIdentityPublicKey = alice.publicKey,
             theirIdentityPublicKey = bob.publicKey,
-            iAmSender = true
         ).getOrThrow()
 
-        assertEquals(message, String(aliceDecrypted))
+        val poeticText = poeticEncoder.encode(CryptoEnvelopeSerializer.serialize(envelope)).getOrThrow()
+        val decodedEnvelope = CryptoEnvelopeSerializer.deserialize(poeticDecoder.decode(poeticText).getOrThrow())
+
+        assertEquals(
+            message,
+            String(
+                cryptoOrchestrator.decryptMessage(
+                    decodedEnvelope,
+                    bob.privateKey,
+                    bob.publicKey,
+                    alice.publicKey,
+                    iAmSender = false,
+                ).getOrThrow(),
+            ),
+        )
+        assertEquals(
+            message,
+            String(
+                cryptoOrchestrator.decryptMessage(
+                    decodedEnvelope,
+                    alice.privateKey,
+                    alice.publicKey,
+                    bob.publicKey,
+                    iAmSender = true,
+                ).getOrThrow(),
+            ),
+        )
     }
 
     @Test
-    fun `tampering detection - modified poetic text should fail`() = runTest {
+    fun `tampering poetic text prevents successful decryption`() = runTest {
         corpusProvider.load().getOrThrow()
 
         val alice = keyManager.generateIdentityKeyPair().getOrThrow()
@@ -131,24 +136,34 @@ class CryptoSteganographyIntegrationTest {
             plaintext = message.toByteArray(),
             myIdentityPrivateKey = alice.privateKey,
             myIdentityPublicKey = alice.publicKey,
-            theirIdentityPublicKey = bob.publicKey
+            theirIdentityPublicKey = bob.publicKey,
         ).getOrThrow()
 
-        val envelopeBytes = CryptoEnvelopeSerializer.serialize(envelope)
-        val poeticText = poeticEncoder.encode(envelopeBytes).getOrThrow()
-
+        val poeticText = poeticEncoder.encode(CryptoEnvelopeSerializer.serialize(envelope)).getOrThrow()
         val words = poeticText.split(Regex("\\s+")).toMutableList()
         for (i in 0 until minOf(5, words.size)) {
             val idx = corpusProvider.getIndex(words[i])
             words[i] = corpusProvider.getWord((idx + 1) % corpusProvider.getWordCount())
         }
-        val tampered = words.joinToString(" ")
 
-        val decodedBytes = poeticDecoder.decode(tampered).getOrThrow()
+        val decodedBytes = poeticDecoder.decode(words.joinToString(" ")).getOrThrow()
 
-        assertThrows(IllegalArgumentException::class.java) {
-            CryptoEnvelopeSerializer.deserialize(decodedBytes)
-        }
+        // v2 envelopes may still parse after bit-flips; AES-GCM must reject tampered ciphertext.
+        val tamperingDetected = runCatching {
+            val tamperedEnvelope = CryptoEnvelopeSerializer.deserialize(decodedBytes)
+            cryptoOrchestrator.decryptMessage(
+                envelope = tamperedEnvelope,
+                myIdentityPrivateKey = bob.privateKey,
+                myIdentityPublicKey = bob.publicKey,
+                theirIdentityPublicKey = alice.publicKey,
+                iAmSender = false,
+            ).getOrThrow()
+        }.isFailure
+
+        assertTrue(
+            "Tampered poetic text must not recover the original plaintext",
+            tamperingDetected,
+        )
     }
 
     @Test
@@ -158,33 +173,25 @@ class CryptoSteganographyIntegrationTest {
         val alice = keyManager.generateIdentityKeyPair().getOrThrow()
         val bob = keyManager.generateIdentityKeyPair().getOrThrow()
 
-        val envelope1 = cryptoOrchestrator.encryptMessage(
-            plaintext = "First message".toByteArray(),
-            myIdentityPrivateKey = alice.privateKey,
-            myIdentityPublicKey = alice.publicKey,
-            theirIdentityPublicKey = bob.publicKey
-        ).getOrThrow()
+        suspend fun encryptToPoetry(plaintext: String): String {
+            val envelope = cryptoOrchestrator.encryptMessage(
+                plaintext.toByteArray(),
+                alice.privateKey,
+                alice.publicKey,
+                bob.publicKey,
+            ).getOrThrow()
+            return poeticEncoder.encode(CryptoEnvelopeSerializer.serialize(envelope)).getOrThrow()
+        }
 
-        val envelope2 = cryptoOrchestrator.encryptMessage(
-            plaintext = "Second message".toByteArray(),
-            myIdentityPrivateKey = alice.privateKey,
-            myIdentityPublicKey = alice.publicKey,
-            theirIdentityPublicKey = bob.publicKey
-        ).getOrThrow()
-
-        val poetic1 = poeticEncoder.encode(CryptoEnvelopeSerializer.serialize(envelope1)).getOrThrow()
-        val poetic2 = poeticEncoder.encode(CryptoEnvelopeSerializer.serialize(envelope2)).getOrThrow()
-
-        assertNotEquals(poetic1, poetic2)
+        assertNotEquals(encryptToPoetry("First message"), encryptToPoetry("Second message"))
     }
 
     @Test
-    fun `complete flow - encrypt and encode very long Persian message`() = runTest {
+    fun `complete flow - long Persian message`() = runTest {
         corpusProvider.load().getOrThrow()
 
         val alice = keyManager.generateIdentityKeyPair().getOrThrow()
         val bob = keyManager.generateIdentityKeyPair().getOrThrow()
-
         val message = buildString {
             repeat(500) {
                 append("این یک پیام بسیار طولانی است که برای تست عملکرد سیستم انکریپت و استگانوگرافی استفاده می‌شود. ")
@@ -195,50 +202,30 @@ class CryptoSteganographyIntegrationTest {
             plaintext = message.toByteArray(),
             myIdentityPrivateKey = alice.privateKey,
             myIdentityPublicKey = alice.publicKey,
-            theirIdentityPublicKey = bob.publicKey
+            theirIdentityPublicKey = bob.publicKey,
         ).getOrThrow()
 
-        val envelopeBytes = CryptoEnvelopeSerializer.serialize(envelope)
-        val poeticText = poeticEncoder.encode(envelopeBytes).getOrThrow()
-
+        val poeticText = poeticEncoder.encode(CryptoEnvelopeSerializer.serialize(envelope)).getOrThrow()
         assertTrue(poeticText.length > 1000)
 
-        val decodedBytes = poeticDecoder.decode(poeticText).getOrThrow()
-        val decodedEnvelope = CryptoEnvelopeSerializer.deserialize(decodedBytes)
+        println(poeticText)
+        println(poeticText.length)
+        println(message.length)
 
+        val decodedEnvelope = CryptoEnvelopeSerializer.deserialize(poeticDecoder.decode(poeticText).getOrThrow())
         val decrypted = cryptoOrchestrator.decryptMessage(
-            envelope = decodedEnvelope,
-            myIdentityPrivateKey = bob.privateKey,
-            myIdentityPublicKey = bob.publicKey,
-            theirIdentityPublicKey = alice.publicKey,
-            iAmSender = false
+            decodedEnvelope,
+            bob.privateKey,
+            bob.publicKey,
+            alice.publicKey,
+            iAmSender = false,
         ).getOrThrow()
 
         assertEquals(message, String(decrypted))
     }
 
     @Test
-    fun `verify independent ephemeral keys for perfect forward secrecy`() = runTest {
-        corpusProvider.load().getOrThrow()
-
-        val alice = keyManager.generateIdentityKeyPair().getOrThrow()
-        val bob = keyManager.generateIdentityKeyPair().getOrThrow()
-
-        val envelope = cryptoOrchestrator.encryptMessage(
-            plaintext = "test".toByteArray(),
-            myIdentityPrivateKey = alice.privateKey,
-            myIdentityPublicKey = alice.publicKey,
-            theirIdentityPublicKey = bob.publicKey
-        ).getOrThrow()
-
-        assertNotEquals(
-            envelope.receiverEphemeralPublicKey.contentHashCode(),
-            envelope.senderEphemeralPublicKey.contentHashCode()
-        )
-    }
-
-    @Test
-    fun `MITM attack prevention - wrong sender key fails verification`() = runTest {
+    fun `decryption fails when peer public key does not match encryption`() = runTest {
         corpusProvider.load().getOrThrow()
 
         val alice = keyManager.generateIdentityKeyPair().getOrThrow()
@@ -249,7 +236,7 @@ class CryptoSteganographyIntegrationTest {
             plaintext = "Secret".toByteArray(),
             myIdentityPrivateKey = alice.privateKey,
             myIdentityPublicKey = alice.publicKey,
-            theirIdentityPublicKey = bob.publicKey
+            theirIdentityPublicKey = bob.publicKey,
         ).getOrThrow()
 
         val result = cryptoOrchestrator.decryptMessage(
@@ -257,144 +244,44 @@ class CryptoSteganographyIntegrationTest {
             myIdentityPrivateKey = bob.privateKey,
             myIdentityPublicKey = bob.publicKey,
             theirIdentityPublicKey = mallory.publicKey,
-            iAmSender = false
+            iAmSender = false,
         )
 
         assertTrue(result.isFailure)
     }
 
     @Test
-    fun `find maximum Persian message size that encrypts under 4096 characters`() = runTest {
+    fun `compact envelope stays under poetic limit for larger plaintext`() = runTest {
         corpusProvider.load().getOrThrow()
 
         val alice = keyManager.generateIdentityKeyPair().getOrThrow()
         val bob = keyManager.generateIdentityKeyPair().getOrThrow()
+        val base = "در دنیای امروز، امنیت اطلاعات یکی از مهم‌ترین دغدغه‌های بشر است. "
 
-        val persianTexts = listOf(
-            "در دنیای امروز، امنیت اطلاعات یکی از مهم‌ترین دغدغه‌های بشر است. ",
-            "زمانی که خورشید از پشت کوه‌های البرز طلوع می‌کند، نور طلایی آن تمام دشت را فرا می‌گیرد. ",
-            "تکنولوژی رمزنگاری پیشرفت‌های چشمگیری در سال‌های اخیر داشته و امنیت بیشتری را فراهم کرده است. ",
-            "شعر و ادبیات فارسی یکی از غنی‌ترین میراث‌های فرهنگی ایران زمین محسوب می‌شود که قرن‌ها الهام‌بخش بوده است. ",
-            "علم و دانش همواره کلید پیشرفت جوامع بشری بوده و خواهد بود، چرا که بدون دانش نمی‌توان به تکامل رسید. "
+        var maxUnderLimit = 0
+        for (targetSize in listOf(100, 200, 400, 600, 800, 1000, 1200, 1500)) {
+            val message = buildString {
+                while (length < targetSize) append(base)
+            }.take(targetSize)
+
+            val envelope = cryptoOrchestrator.encryptMessage(
+                message.toByteArray(),
+                alice.privateKey,
+                alice.publicKey,
+                bob.publicKey,
+            ).getOrThrow()
+            val poeticLength = poeticEncoder.encode(
+                CryptoEnvelopeSerializer.serialize(envelope),
+            ).getOrThrow().length
+
+            if (poeticLength < 4096) {
+                maxUnderLimit = targetSize
+            }
+        }
+
+        assertTrue(
+            "Simplified crypto should allow at least 600 chars under 4096 poetic limit, got max $maxUnderLimit",
+            maxUnderLimit >= 600,
         )
-
-        println("\n${"=".repeat(100)}")
-        println("Testing Maximum Persian Message Size (Target: Poetic Output < 4096 chars)")
-        println("=".repeat(100))
-
-        val results = mutableListOf<SizeTestResult>()
-        val testSizes = listOf(50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000)
-
-        persianTexts.forEachIndexed { textIndex, baseText ->
-            println("\nBase Text ${textIndex + 1}: ${baseText.take(50)}...")
-            println("-".repeat(100))
-
-            testSizes.forEach { targetSize ->
-                val message = buildString {
-                    while (length < targetSize) {
-                        append(baseText)
-                    }
-                }.take(targetSize)
-
-                try {
-                    val envelope = cryptoOrchestrator.encryptMessage(
-                        plaintext = message.toByteArray(),
-                        myIdentityPrivateKey = alice.privateKey,
-                        myIdentityPublicKey = alice.publicKey,
-                        theirIdentityPublicKey = bob.publicKey
-                    ).getOrThrow()
-
-                    val envelopeBytes = CryptoEnvelopeSerializer.serialize(envelope)
-                    val poeticText = poeticEncoder.encode(envelopeBytes).getOrThrow()
-
-                    val poeticLength = poeticText.length
-                    val isUnderLimit = poeticLength < 4096
-                    val status = if (isUnderLimit) "PASS" else "FAIL"
-
-                    results.add(
-                        SizeTestResult(
-                            textId = textIndex + 1,
-                            originalLength = message.length,
-                            encryptedBytes = envelopeBytes.size,
-                            poeticLength = poeticLength,
-                            ratio = poeticLength.toDouble() / message.length,
-                            isUnderLimit = isUnderLimit
-                        )
-                    )
-
-                    println("Original: %4d | Encrypted: %5d bytes | Poetic: %4d chars | Ratio: %.2fx | %s".format(
-                        message.length,
-                        envelopeBytes.size,
-                        poeticLength,
-                        poeticLength.toDouble() / message.length,
-                        status
-                    ))
-
-                } catch (e: Exception) {
-                    println("Original: %4d | ERROR: ${e.message}".format(targetSize))
-                }
-            }
-        }
-
-        println("\n${"=".repeat(100)}")
-        println("RESULTS SUMMARY")
-        println("=".repeat(100))
-
-        val validResults = results.filter { it.isUnderLimit }
-        val maxValidResult = validResults.maxByOrNull { it.originalLength }
-
-        println("\nTotal Tests: ${results.size}")
-        println("Passed (< 4096): ${validResults.size}")
-        println("Failed (>= 4096): ${results.size - validResults.size}")
-
-        println("\nMAXIMUM ALLOWED MESSAGE SIZE:")
-        maxValidResult?.let {
-            println("  Original Length: ${it.originalLength} chars")
-            println("  Encrypted Size: ${it.encryptedBytes} bytes")
-            println("  Poetic Output: ${it.poeticLength} chars")
-            println("  Inflation Ratio: %.2fx".format(it.ratio))
-            println("  Usage: %.2f%%".format((it.poeticLength.toDouble() / 4096) * 100))
-        }
-
-        val closestResult = validResults.maxByOrNull { it.poeticLength }
-        println("\nCLOSEST TO LIMIT (4096):")
-        closestResult?.let {
-            println("  Original Length: ${it.originalLength} chars")
-            println("  Poetic Output: ${it.poeticLength} chars")
-            println("  Remaining: ${4096 - it.poeticLength} chars")
-        }
-
-        val avgRatio = validResults.map { it.ratio }.average()
-        println("\nAverage Inflation Ratio: %.2fx".format(avgRatio))
-
-        println("\n${"=".repeat(100)}")
-        println("PER BASE TEXT SUMMARY:")
-        println("=".repeat(100))
-
-        persianTexts.indices.forEach { textIndex ->
-            val textResults = results.filter { it.textId == textIndex + 1 && it.isUnderLimit }
-            val maxForThisText = textResults.maxByOrNull { it.originalLength }
-
-            if (maxForThisText != null) {
-                println("\nText ${textIndex + 1}:")
-                println("  Max Original: ${maxForThisText.originalLength} chars")
-                println("  Poetic Output: ${maxForThisText.poeticLength} chars")
-                println("  Ratio: %.2fx".format(maxForThisText.ratio))
-            }
-        }
-
-        println("\n${"=".repeat(100)}")
-        println("FINAL RESULT: Maximum Persian message size = ${maxValidResult?.originalLength} chars")
-        println("              Results in ${maxValidResult?.poeticLength} poetic chars")
-        println("=".repeat(100))
     }
-
-    data class SizeTestResult(
-        val textId: Int,
-        val originalLength: Int,
-        val encryptedBytes: Int,
-        val poeticLength: Int,
-        val ratio: Double,
-        val isUnderLimit: Boolean
-    )
 }

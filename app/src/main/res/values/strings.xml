@@ -49,6 +49,7 @@
     <string name="warning" translatable="false">هشدار</string>
     <string name="save_successfully" translatable="false">فایل با موفقیت ذخیره شد</string>
     <string name="guides" translatable="false">راهنما</string>
+    <string name="privacy_concept" translatable="false">حریم خصوصی و امنیت</string>
     <string name="new_issue" translatable="false">ارسال گزارش</string>
     <string name="decrypted" translatable="false">رمزگشایی شده</string>
     <string name="version" translatable="false">ورژن:</string>

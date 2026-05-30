@@ -1,84 +1,88 @@
-# ChatGuard: End-to-End Encryption with Perfect Forward Secrecy
+# ChatGuard: Simple End-to-End Encryption
 
 ## Overview
 
-ChatGuard encrypts messages that can be sent through any messaging platform (Eitaa, Bale, Soroush). It stores keys locally on your device—no servers, no accounts. Messages are disguised as poetic text to avoid detection.
+ChatGuard is a privacy bridge: it encrypts messages on your device and disguises them as poetic Persian text so you can send them through existing apps (Eitaa, Bale, Soroush, Telegram, and similar). Keys stay on your phone. There are no ChatGuard servers or accounts.
+
+The design favors **small messages** and **simple code** over Signal-level features such as perfect forward secrecy or double ratchets.
 
 ## How It Works
 
-### Key Exchange
+### Key exchange (once per contact)
 
-1. Each user generates an **identity keypair** (one-time, stored locally)
-2. Users exchange **public keys** through a trusted channel
-3. Public keys are encoded as poetic text and shared directly peer-to-peer
+1. Each user generates a **long-term identity keypair** (stored locally).
+2. Users exchange **public keys** over a trusted channel (often the same chat app).
+3. Public keys can be encoded as poetic text (steganography) before sharing.
 
-### Sending a Message (Alice → Bob)
+Public keys may be **signed** with the owner’s identity key so the recipient can detect tampering during exchange. That signature is separate from message encryption.
 
-**For Bob to decrypt:**
-1. Generate temporary **ephemeral keypair #1**
-2. Combine ephemeral private key with Bob's public key (ECDH)
-3. Derive encryption key (HKDF)
-4. Encrypt message (AES-256-GCM)
-5. Sign the ephemeral public key (proves it's from Alice)
-6. **Destroy ephemeral private key**
+### Sending a message (Alice → Bob)
 
-**For Alice to re-read later:**
-1. Generate separate **ephemeral keypair #2**
-2. Combine ephemeral private key with Alice's own public key (ECDH)
-3. Derive wrapping key (HKDF)
-4. Encrypt the encryption key from step 3
-5. Sign the ephemeral public key
-6. **Destroy ephemeral private key**
+1. Compute a **shared secret**: ECDH(Alice’s private key, Bob’s public key).
+2. Derive a conversation AES-256 key with **HKDF-SHA256** (shared secret + fixed salt).
+3. Encrypt the plaintext with **AES-256-GCM** using a random **12-byte nonce** per message.
+5. Build a compact envelope: `nonce | ciphertext | auth tag`.
+6. Serialize the envelope to bytes, then encode as **poetic text** for sending.
 
-**Result:** One message envelope containing both encrypted paths, converted to poetic text and sent.
+### Reading a message
 
-### Receiving a Message
+**Bob (recipient):**
 
-**Bob decrypts:**
-1. Decode poetic text to binary envelope
-2. Verify Alice's signature (confirms sender)
-3. Combine his private key with ephemeral public key
-4. Derive decryption key
-5. Decrypt message
+1. Decode poetic text → binary envelope.
+2. Compute the same shared secret: ECDH(Bob’s private key, Alice’s public key).
+3. Derive the message key with the envelope nonce.
+4. Decrypt with AES-GCM (tampering fails the auth tag).
 
-**Alice re-reads:**
-1. Verify her own signature
-2. Combine her private key with sender's ephemeral public key
-3. Decrypt wrapped encryption key
-4. Use it to decrypt the message
+**Alice (re-reading what she sent):**
 
-## Message Envelope Contains
+Uses the **same steps** as Bob. ECDH(Alice’s private key, Bob’s public key) equals ECDH(Bob’s private key, Alice’s public key), so no second envelope or key-wrapping layer is needed.
 
-- **Receiver path:** ephemeral public key, signature, ciphertext, nonce, auth tag
-- **Sender path:** ephemeral public key, signature, wrapped key, nonce, auth tag
+## Message envelope (v2)
 
-Each component serves authentication, encryption, or integrity verification.
+| Field        | Size        | Role                          |
+|-------------|-------------|-------------------------------|
+| Version     | 1 byte      | Format identifier (v2)        |
+| Nonce       | 12 bytes    | HKDF salt + GCM IV            |
+| Ciphertext  | Variable    | Encrypted message             |
+| Auth tag    | 16 bytes    | GCM integrity                 |
 
-## Security Properties
+**Fixed overhead:** 33 bytes (+ poetic encoding expansion).
 
-**Forward Secrecy:** If Alice's phone is stolen months later, past messages remain secure—the ephemeral private keys needed to decrypt them were destroyed after sending.
+Compared with the previous dual-ephemeral design (~400+ bytes of crypto overhead per message), payloads are much smaller, so more plaintext fits under messenger length limits.
 
-**Authentication:** Signatures prove who sent each message, preventing impersonation.
+## Cryptographic building blocks
 
-**Integrity:** Authentication tags detect any tampering with ciphertext.
+| Component        | Choice              | Purpose                          |
+|------------------|---------------------|----------------------------------|
+| Key agreement    | ECDH (P-256)        | Shared secret per peer pair      |
+| Key derivation   | HKDF-SHA256         | Per-message AES key from nonce   |
+| Encryption       | AES-256-GCM         | Confidentiality + integrity      |
+| Key exchange auth| ECDSA (optional)    | Sign exported public keys only   |
 
-**No Server Trust:** Everything happens on-device; no third party can access keys or plaintext.
+## Security properties
 
-## Key Innovation
+**What you get**
 
-Standard encryption with sender-copy breaks forward secrecy. ChatGuard uses **two independent ephemeral keypairs**—one for receiver, one for sender recovery—both destroyed after encryption. This achieves forward secrecy even for messages you sent yourself.
+- Messaging platforms and their servers cannot read ciphertext without your private key.
+- GCM authentication tags detect modified ciphertext.
+- Each message uses a fresh nonce, so identical plaintexts produce different ciphertexts.
 
-## Cryptographic Algorithms
+**What you do not get**
 
-- ECDH (P-256 curve) for key agreement
-- HKDF-SHA256 for key derivation
-- AES-256-GCM for encryption
-- ECDSA-SHA256 for signatures
+- **Perfect forward secrecy:** If a long-term private key is stolen, past messages encrypted with that peer can be decrypted. Ephemeral per-message keys were removed to save space.
+- **Group chat:** One-to-one only.
+- **MITM after bad key exchange:** You must verify public keys out-of-band (fingerprints, QR, in-person).
+
+## Poetic encoding
+
+Binary envelopes are embedded in Persian word sequences (word index = data). Encoding efficiency depends on corpus size (more words → fewer words per byte). This layer is unchanged in purpose; smaller envelopes mean shorter poems.
 
 ## Limitations
 
-- **No group chat:** Designed for one-to-one messaging only
+- One-to-one chats only.
+- Not a replacement for Signal or WhatsApp’s full protocol stack.
+- Security depends on safe initial public-key exchange.
 
 ---
 
-**Bottom line:** ChatGuard provides Signal-level encryption over any text channel, with the unique ability to decrypt your own sent messages while maintaining perfect forward secrecy.
+**Bottom line:** ChatGuard adds a lightweight ECDH + AES-GCM privacy layer and poetic disguise on top of apps you already use, with minimal per-message overhead.
