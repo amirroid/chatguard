@@ -1,6 +1,7 @@
 package ir.amirroid.chatguard
 
 import android.app.Application
+import android.app.DownloadManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
@@ -11,6 +12,7 @@ import ir.amirroid.chatguard.di.applicationModule
 import ir.amirroid.chatguard.di.bridgeModule
 import ir.amirroid.chatguard.di.cryptoModule
 import ir.amirroid.chatguard.di.databaseModule
+import ir.amirroid.chatguard.di.downloaderModule
 import ir.amirroid.chatguard.di.messengerModule
 import ir.amirroid.chatguard.di.preferencesModule
 import ir.amirroid.chatguard.di.repositoryModule
@@ -54,7 +56,7 @@ class ChatGuardApp : Application() {
             modules(
                 cryptoModule, steganographyModule, messengerModule, serviceModule, bridgeModule,
                 databaseModule, preferencesModule, repositoryModule, useCaseModule, viewModelModule,
-                applicationModule, webExtractionModule
+                applicationModule, webExtractionModule, downloaderModule
             )
         }
 

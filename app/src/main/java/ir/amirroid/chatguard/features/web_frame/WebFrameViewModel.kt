@@ -13,6 +13,7 @@ import ir.amirroid.chatguard.core.web_content_extractor.models.ExtractedElementM
 import ir.amirroid.chatguard.core.web_content_extractor.models.ExtractedUserInfo
 import ir.amirroid.chatguard.core.web_content_extractor.models.InfoMessageType
 import ir.amirroid.chatguard.domain.models.crypto.CryptoKey
+import ir.amirroid.chatguard.domain.usecase.downlad.EnqueueDownloadUseCase
 import ir.amirroid.chatguard.domain.usecase.key.AddUserPublicKeyUseCase
 import ir.amirroid.chatguard.domain.usecase.key.GetPublicKeyUseCase
 import ir.amirroid.chatguard.domain.usecase.steganography_crypto.ExtractPoeticPublicKeyUseCase
@@ -41,6 +42,7 @@ class WebFrameViewModel(
     private val decryptionUseCase: PoeticMessageDecryptionUseCase,
     private val addUserPublicKeyUseCase: AddUserPublicKeyUseCase,
     private val getPoeticPublicKeyUseCase: ExtractPoeticPublicKeyUseCase,
+    private val enqueueDownloadUseCase: EnqueueDownloadUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val _state = MutableStateFlow(WebFrameScreenState())
@@ -309,6 +311,11 @@ class WebFrameViewModel(
 
         taskResults[task.data.id] = result
         emitResultEvents(task.data.id, result)
+    }
+
+
+    fun addNewDownload(url: String, fileName: String, mimeType: String?) {
+        enqueueDownloadUseCase.invoke(url, fileName, mimeType)
     }
 
     override fun onCleared() {

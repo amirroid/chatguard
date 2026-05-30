@@ -3,6 +3,7 @@ package ir.amirroid.chatguard.ui.components.webview
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.webkit.URLUtil
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -21,6 +22,7 @@ fun WebView(
     state: WebViewState,
     update: (WebView) -> Unit,
     onNewPageLoaded: (String) -> Unit,
+    onNewDownload: (url: String, fileName: String, mimeType: String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     AndroidView(
@@ -44,6 +46,14 @@ fun WebView(
                     mediaPlaybackRequiresUserGesture = false
                     allowFileAccess = true
                     allowContentAccess = true
+                }
+
+                setDownloadListener { url, _, contentDisposition, mimeType, _ ->
+                    val fileName = URLUtil.guessFileName(
+                        url, contentDisposition, mimeType
+                    )
+
+                    onNewDownload.invoke(url, fileName, mimeType)
                 }
 
                 webViewClient = object : WebViewClient() {

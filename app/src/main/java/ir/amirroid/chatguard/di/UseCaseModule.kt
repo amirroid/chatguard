@@ -1,6 +1,7 @@
 package ir.amirroid.chatguard.di
 
 import ir.amirroid.chatguard.domain.repository.SaveInternalIdentityKeyUseCase
+import ir.amirroid.chatguard.domain.usecase.downlad.EnqueueDownloadUseCase
 import ir.amirroid.chatguard.domain.usecase.key.CheckIdentityKeyExistsUseCase
 import ir.amirroid.chatguard.domain.usecase.key.CheckPublicKeyExistsUseCase
 import ir.amirroid.chatguard.domain.usecase.key.GenerateIdentityKeyUseCase
@@ -34,4 +35,5 @@ val useCaseModule = module {
     factoryOf(::SaveInternalIdentityKeyUseCase)
     factoryOf(::ClearCurrentKeysUseCase)
     factoryOf(::SaveIdentityKeysUseCase)
+    factoryOf(::EnqueueDownloadUseCase)
 }
