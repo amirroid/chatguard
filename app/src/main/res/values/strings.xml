@@ -54,8 +54,9 @@
     <string name="decrypted" translatable="false">رمزگشایی شده</string>
     <string name="version" translatable="false">ورژن:</string>
     <string name="message_limit_text" translatable="false">حداکثر طول مجاز هر پیام ۶۰۰ کاراکتر است.</string>
-    <string name="send_plain_text_warning">
+    <string name="send_plain_text_warning" translatable="false">
     شما کلید رمزنگاری مخاطب موردنظر را در اختیار ندارید.
     آیا مایل به ارسال پیام به‌صورت غیررمزنگاری‌شده هستید؟
     </string>
+    <string name="download_started" translatable="false">دانلود آغاز شد</string>
 </resources>

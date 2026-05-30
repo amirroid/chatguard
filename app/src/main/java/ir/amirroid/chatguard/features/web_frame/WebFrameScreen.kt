@@ -111,6 +111,10 @@ fun WebFrameScreen(
 
                     webContentExtractor.observeSendAction(viewModel::handleSendMessage)
                 }
+            },
+            onNewDownload = {url, filename, mimeType ->
+                viewModel.addNewDownload(url, filename, mimeType)
+                Toast.makeText(context, R.string.download_started, Toast.LENGTH_SHORT).show()
             }
         )
 
