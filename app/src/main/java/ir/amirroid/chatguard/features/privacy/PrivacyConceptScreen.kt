@@ -4,10 +4,14 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -62,19 +66,13 @@ fun PrivacyConceptScreen(onBack: () -> Unit) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .navigationBarsPadding(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                .padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(
+                top = 12.dp,
+                bottom = 24.dp
+            ) + innerPadding,
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            item(key = "subtitle") {
-                Text(
-                    text = PrivacyConceptContent.SCREEN_SUBTITLE,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
-                )
-            }
-
             item(key = "hero") {
                 PrivacyHeroSection(
                     title = PrivacyConceptContent.HERO_TITLE,
@@ -179,10 +177,6 @@ fun PrivacyConceptScreen(onBack: () -> Unit) {
                     title = PrivacyConceptContent.CLOSING_TITLE,
                     body = PrivacyConceptContent.CLOSING_BODY,
                 )
-            }
-
-            item(key = "bottom_spacer") {
-                Spacer(Modifier.height(24.dp))
             }
         }
     }

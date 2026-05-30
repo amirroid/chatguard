@@ -92,28 +92,18 @@ internal fun IllustrationPlaceholder(
     boxSize: Dp = 96.dp,
     showCaption: Boolean = true,
 ) {
-    Column(modifier = modifier) {
-        Surface(
-            modifier = Modifier.size(boxSize),
-            shape = RoundedCornerShape(if (boxSize >= 80.dp) 24.dp else 16.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
-            tonalElevation = 2.dp,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(boxSize * 0.5f),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
-        if (showCaption) {
-            Text(
-                text = "جای تصویر / آیکون",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f),
-                modifier = Modifier.padding(top = 8.dp),
+    Surface(
+        modifier = modifier.size(boxSize),
+        shape = RoundedCornerShape(if (boxSize >= 80.dp) 24.dp else 16.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+        tonalElevation = 2.dp,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(boxSize * 0.5f),
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
     }
@@ -234,7 +224,7 @@ private fun PrivacyTimelineItem(
             Text(
                 text = step.title,
                 style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.height(6.dp))
             Text(

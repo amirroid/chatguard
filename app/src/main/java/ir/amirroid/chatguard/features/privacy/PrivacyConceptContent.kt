@@ -32,8 +32,6 @@ internal data class PrivacyHighlight(
 internal object PrivacyConceptContent {
 
     const val SCREEN_TITLE = "حریم خصوصی در چت‌گارد"
-    const val SCREEN_SUBTITLE =
-        "بدون اصطلاحات فنی — فقط آنچه برای استفادهٔ امن کافی است بدانید."
 
     const val HERO_TITLE = "لایه‌ای از حفاظت روی پیام‌رسان‌هایی که الان دارید"
     const val HERO_BODY =
@@ -135,6 +133,6 @@ internal object PrivacyConceptContent {
 
     const val CLOSING_TITLE = "خلاصهٔ یک جمله‌ای"
     const val CLOSING_BODY =
-        "چت‌گارد به شما کمک می‌کند همان پیام‌رسان‌های همیشگی را با خیال راحت‌تری استفاده کنید: " +
+        "چت‌گارد به شما کمک می‌کند همان پیام‌رسان‌های ناامن را با خیال راحت‌تری استفاده کنید: " +
             "متن واقعی فقط بین شما و مخاطبتان می‌ماند — به شرط آنکه کلیدها را درست و امن نگه دارید."
 }
