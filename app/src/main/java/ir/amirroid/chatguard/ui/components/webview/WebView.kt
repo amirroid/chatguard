@@ -3,7 +3,9 @@ package ir.amirroid.chatguard.ui.components.webview
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.net.Uri
 import android.webkit.URLUtil
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -11,7 +13,14 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 
@@ -25,6 +34,19 @@ fun WebView(
     onNewDownload: (url: String, fileName: String, mimeType: String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var fileChooserCallback by remember {
+        mutableStateOf<ValueCallback<Array<out Uri?>?>?>(null)
+    }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        fileChooserCallback?.onReceiveValue(
+            uri?.let { arrayOf(it) }
+        )
+        fileChooserCallback = null
+    }
+
     AndroidView(
         factory = { context ->
             WebView(context).apply {
@@ -112,6 +134,7 @@ fun WebView(
                     }
                 }
 
+
                 webChromeClient = object : WebChromeClient() {
                     override fun onProgressChanged(view: WebView?, newProgress: Int) {
                         super.onProgressChanged(view, newProgress)
@@ -122,6 +145,25 @@ fun WebView(
                     override fun onReceivedTitle(view: WebView?, title: String?) {
                         super.onReceivedTitle(view, title)
                         state.title = title ?: ""
+                    }
+
+                    override fun onShowFileChooser(
+                        webView: WebView?,
+                        callback: ValueCallback<Array<out Uri?>?>,
+                        fileChooserParams: FileChooserParams?
+                    ): Boolean {
+                        fileChooserCallback?.onReceiveValue(null)
+                        fileChooserCallback = callback
+
+                        val mimeType = fileChooserParams?.acceptTypes
+                            ?.filter { it.isNotEmpty() }
+                            ?.toTypedArray()
+                            ?.takeIf { it.isNotEmpty() }
+                            ?: arrayOf("*/*")
+
+                        filePickerLauncher.launch(mimeType)
+
+                        return true
                     }
                 }
 
