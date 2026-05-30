@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import ir.amirroid.chatguard.features.guide.GuideScreen
+import ir.amirroid.chatguard.features.privacy.PrivacyConceptScreen
 import ir.amirroid.chatguard.features.home.HomeScreen
 import ir.amirroid.chatguard.features.intro.IntroScreen
 import ir.amirroid.chatguard.features.web_frame.WebFrameScreen
@@ -67,7 +68,10 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onGoToGuides = {
                                     navController.navigate(Screens.Guides)
-                                }
+                                },
+                                onGoToPrivacyConcept = {
+                                    navController.navigate(Screens.PrivacyConcept)
+                                },
                             )
                         }
                         composable<Screens.Web> {
@@ -81,6 +85,11 @@ class MainActivity : ComponentActivity() {
                         composable<Screens.Guides> {
                             GuideScreen(
                                 onBack = navController::navigateUp
+                            )
+                        }
+                        composable<Screens.PrivacyConcept> {
+                            PrivacyConceptScreen(
+                                onBack = navController::navigateUp,
                             )
                         }
                     }

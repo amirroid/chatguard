@@ -97,6 +97,7 @@ fun HomeScreen(
     onGoToWebFrame: (MessengerPlatform) -> Unit,
     onGoToIntro: () -> Unit,
     onGoToGuides: () -> Unit,
+    onGoToPrivacyConcept: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
     val context = LocalContext.current
@@ -179,6 +180,7 @@ fun HomeScreen(
                 },
                 onExitKeys = { isExitKeysWarningDialog = true },
                 onGoToGuides = onGoToGuides,
+                onGoToPrivacyConcept = onGoToPrivacyConcept,
                 onOpenNewIssue = { uriHandler.openUri("${Constants.REPOSITORY_URL}/issues") }
             )
         }
@@ -284,6 +286,7 @@ private fun SettingsCard(
     onExportKeys: () -> Unit,
     onExitKeys: () -> Unit,
     onGoToGuides: () -> Unit,
+    onGoToPrivacyConcept: () -> Unit,
     onOpenNewIssue: () -> Unit
 ) {
     Card(
@@ -336,6 +339,21 @@ private fun SettingsCard(
                         )
                     },
                     modifier = Modifier.clickable(onClick = onOpenNewIssue)
+                )
+                TransparentListItem(
+                    headlineContent = {
+                        Text(stringResource(R.string.privacy_concept))
+                    },
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .padding(end = 16.dp)
+                                .size(16.dp)
+                        )
+                    },
+                    modifier = Modifier.clickable(onClick = onGoToPrivacyConcept)
                 )
                 TransparentListItem(
                     headlineContent = {

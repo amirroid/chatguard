@@ -14,6 +14,9 @@ sealed interface Screens {
     data object Guides : Screens
 
     @Serializable
+    data object PrivacyConcept : Screens
+
+    @Serializable
     data class Web(
         val platform: MessengerPlatform
     ) : Screens
