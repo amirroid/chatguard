@@ -12,7 +12,7 @@ interface KeyManager {
     // Generate long-term identity key pair (once per installation)
     suspend fun generateIdentityKeyPair(): Result<IdentityKeyPair>
 
-    // Generate ephemeral key pair (per message, for forward secrecy)
+    // Generate a one-off EC key pair (reserved for future use; messages use identity ECDH)
     suspend fun generateEphemeralKeyPair(): Result<EphemeralKeyPair>
 
     // Reconstruct public key from bytes

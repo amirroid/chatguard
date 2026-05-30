@@ -2,125 +2,81 @@ package ir.amirroid.chatguard.core.crypto.util
 
 import ir.amirroid.chatguard.core.crypto.models.CryptoEnvelope
 
+/**
+ * Binary serializer for [CryptoEnvelope] using a fixed-layout v2 format to minimize size.
+ */
 object CryptoEnvelopeSerializer {
 
+    private const val FORMAT_VERSION: Byte = 2
+    private const val NONCE_LENGTH = 12
+    private const val AUTH_TAG_LENGTH = 16
+
     fun serialize(envelope: CryptoEnvelope): ByteArray {
-        fun Int.toBytes() = byteArrayOf(
-            (this shr 24).toByte(),
-            (this shr 16).toByte(),
-            (this shr 8).toByte(),
-            this.toByte()
-        )
+        require(envelope.nonce.size == NONCE_LENGTH) {
+            "Nonce must be $NONCE_LENGTH bytes, got ${envelope.nonce.size}"
+        }
+        val authTag = envelope.authTag
+            ?: throw IllegalArgumentException("Auth tag is required for v2 envelopes")
+        require(authTag.size == AUTH_TAG_LENGTH) {
+            "Auth tag must be $AUTH_TAG_LENGTH bytes, got ${authTag.size}"
+        }
 
-        return buildList {
-            // Receiver envelope fields
-            add(envelope.receiverEphemeralPublicKey.size.toBytes())
-            add(envelope.receiverEphemeralPublicKey)
+        val ciphertext = envelope.ciphertext
+        val lengthField = ciphertext.size
 
-            add(envelope.receiverSignature.size.toBytes())
-            add(envelope.receiverSignature)
-
-            add(envelope.ciphertext.size.toBytes())
-            add(envelope.ciphertext)
-
-            add(envelope.nonce.size.toBytes())
-            add(envelope.nonce)
-
-            val authSize = envelope.authTag?.size ?: 0
-            add(authSize.toBytes())
-            envelope.authTag?.let { add(it) }
-
-            // Sender envelope fields
-            add(envelope.senderEphemeralPublicKey.size.toBytes())
-            add(envelope.senderEphemeralPublicKey)
-
-            add(envelope.senderSignature.size.toBytes())
-            add(envelope.senderSignature)
-
-            add(envelope.senderWrappedKey.size.toBytes())
-            add(envelope.senderWrappedKey)
-
-            add(envelope.senderWrappedKeyNonce.size.toBytes())
-            add(envelope.senderWrappedKeyNonce)
-
-            val senderAuthSize = envelope.senderWrappedKeyAuthTag?.size ?: 0
-            add(senderAuthSize.toBytes())
-            envelope.senderWrappedKeyAuthTag?.let { add(it) }
-
-        }.fold(ByteArray(0)) { acc, bytes -> acc + bytes }
+        return ByteArray(1 + NONCE_LENGTH + 4 + lengthField + AUTH_TAG_LENGTH).also { out ->
+            var offset = 0
+            out[offset++] = FORMAT_VERSION
+            envelope.nonce.copyInto(out, offset)
+            offset += NONCE_LENGTH
+            out[offset++] = (lengthField shr 24).toByte()
+            out[offset++] = (lengthField shr 16).toByte()
+            out[offset++] = (lengthField shr 8).toByte()
+            out[offset++] = lengthField.toByte()
+            ciphertext.copyInto(out, offset)
+            offset += lengthField
+            authTag.copyInto(out, offset)
+        }
     }
 
     fun deserialize(data: ByteArray): CryptoEnvelope {
+        val minSize = 1 + NONCE_LENGTH + 4 + AUTH_TAG_LENGTH
+        require(data.size >= minSize) { "Envelope data too short (${data.size} bytes)" }
+
         var offset = 0
-
-        fun readInt(): Int {
-            if (offset + 4 > data.size) {
-                throw IllegalArgumentException("Data too short for reading Int at offset $offset")
-            }
-            val value = ((data[offset].toInt() and 0xFF) shl 24) or
-                    ((data[offset + 1].toInt() and 0xFF) shl 16) or
-                    ((data[offset + 2].toInt() and 0xFF) shl 8) or
-                    (data[offset + 3].toInt() and 0xFF)
-            offset += 4
-            return value
+        val version = data[offset++]
+        require(version == FORMAT_VERSION) {
+            "Unsupported envelope version: $version (expected $FORMAT_VERSION)"
         }
 
-        fun readBytes(): ByteArray {
-            val size = readInt()
-            if (size < 0) {
-                throw IllegalArgumentException("Invalid negative size: $size at offset ${offset - 4}")
-            }
-            if (offset + size > data.size) {
-                throw IllegalArgumentException("Data too short for reading bytes of size $size at offset $offset")
-            }
-            val bytes = data.copyOfRange(offset, offset + size)
-            offset += size
-            return bytes
+        val nonce = data.copyOfRange(offset, offset + NONCE_LENGTH)
+        offset += NONCE_LENGTH
+
+        val ciphertextLength = readIntBE(data, offset)
+        offset += 4
+        require(ciphertextLength >= 0) { "Invalid ciphertext length: $ciphertextLength" }
+
+        val expectedEnd = offset + ciphertextLength + AUTH_TAG_LENGTH
+        require(data.size >= expectedEnd) {
+            "Envelope too short: need at least $expectedEnd bytes, got ${data.size}"
         }
+        // Poetic decoding may append a padding byte; ignore trailing bytes after the tag.
 
-        // Receiver envelope fields
-        val receiverEphemeralPublicKey = readBytes()
-        val receiverSignature = readBytes()
-        val ciphertext = readBytes()
-        val nonce = readBytes()
-
-        val authTagSize = readInt()
-        val authTag = if (authTagSize > 0) {
-            if (offset + authTagSize > data.size) {
-                throw IllegalArgumentException("Data too short for reading authTag of size $authTagSize at offset $offset")
-            }
-            val tag = data.copyOfRange(offset, offset + authTagSize)
-            offset += authTagSize
-            tag
-        } else null
-
-        // Sender envelope fields
-        val senderEphemeralPublicKey = readBytes()
-        val senderSignature = readBytes()
-        val senderWrappedKey = readBytes()
-        val senderWrappedKeyNonce = readBytes()
-
-        val senderWrappedKeyAuthTagSize = readInt()
-        val senderWrappedKeyAuthTag = if (senderWrappedKeyAuthTagSize > 0) {
-            if (offset + senderWrappedKeyAuthTagSize > data.size) {
-                throw IllegalArgumentException("Data too short for reading senderWrappedKeyAuthTag of size $senderWrappedKeyAuthTagSize at offset $offset")
-            }
-            val tag = data.copyOfRange(offset, offset + senderWrappedKeyAuthTagSize)
-            offset += senderWrappedKeyAuthTagSize
-            tag
-        } else null
+        val ciphertext = data.copyOfRange(offset, offset + ciphertextLength)
+        offset += ciphertextLength
+        val authTag = data.copyOfRange(offset, offset + AUTH_TAG_LENGTH)
 
         return CryptoEnvelope(
-            receiverEphemeralPublicKey = receiverEphemeralPublicKey,
-            receiverSignature = receiverSignature,
-            ciphertext = ciphertext,
             nonce = nonce,
+            ciphertext = ciphertext,
             authTag = authTag,
-            senderEphemeralPublicKey = senderEphemeralPublicKey,
-            senderSignature = senderSignature,
-            senderWrappedKey = senderWrappedKey,
-            senderWrappedKeyNonce = senderWrappedKeyNonce,
-            senderWrappedKeyAuthTag = senderWrappedKeyAuthTag
         )
+    }
+
+    private fun readIntBE(data: ByteArray, offset: Int): Int {
+        return ((data[offset].toInt() and 0xFF) shl 24) or
+            ((data[offset + 1].toInt() and 0xFF) shl 16) or
+            ((data[offset + 2].toInt() and 0xFF) shl 8) or
+            (data[offset + 3].toInt() and 0xFF)
     }
 }
