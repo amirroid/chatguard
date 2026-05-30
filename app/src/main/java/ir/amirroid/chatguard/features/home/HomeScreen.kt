@@ -176,7 +176,7 @@ fun HomeScreen(
                 isExpanded = isSettingsItemExpanded,
                 onExpandToggle = { isSettingsItemExpanded = !isSettingsItemExpanded },
                 onExportKeys = {
-                    createFileLauncher.launch("identity_keys_backup.${Constants.KEYS_EXTENSION}")
+                    createFileLauncher.launch("chatguard_identity_keys_backup.${Constants.KEYS_EXTENSION}")
                 },
                 onExitKeys = { isExitKeysWarningDialog = true },
                 onGoToGuides = onGoToGuides,
