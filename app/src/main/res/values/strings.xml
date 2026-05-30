@@ -59,4 +59,5 @@
     آیا مایل به ارسال پیام به‌صورت غیررمزنگاری‌شده هستید؟
     </string>
     <string name="download_started" translatable="false">دانلود آغاز شد</string>
+    <string name="toast_file_not_encrypted" translatable="false">توجه کنید فایل‌های انتخابی رمزنگاری نمی‌شوند</string>
 </resources>

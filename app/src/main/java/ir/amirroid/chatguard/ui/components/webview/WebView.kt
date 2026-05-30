@@ -13,6 +13,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -23,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import ir.amirroid.chatguard.R
 
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -162,6 +164,12 @@ fun WebView(
                             ?: arrayOf("*/*")
 
                         filePickerLauncher.launch(mimeType)
+
+                        Toast.makeText(
+                            context,
+                            R.string.toast_file_not_encrypted,
+                            Toast.LENGTH_SHORT
+                        ).show()
 
                         return true
                     }
