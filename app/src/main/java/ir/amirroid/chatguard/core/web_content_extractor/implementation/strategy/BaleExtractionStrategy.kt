@@ -25,14 +25,14 @@ class BaleExtractionStrategy : PlatformExtractionStrategy {
             targetSelector = "[data-sid] > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1)",
             insertPosition = InsertPosition.APPEND,
         ),
-        beforeSendPublicKeySelector = ".main-section-container > div[aria-label=\"ChatAppBar\"]:nth-child(1) > div:nth-child(1) > div:nth-child(4)",
+        beforeSendPublicKeySelector = ".main-section-container > div[aria-label=\"ChatAppBar\"] > div:nth-child(1) > div:nth-child(4)",
         userInfoSelector = UserInfoSelector(
-            fullNameSelector = ".main-section-container > div[aria-label=\"ChatAppBar\"]:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(1) > p:nth-child(1)"
+            fullNameSelector = ".main-section-container > div[aria-label=\"ChatAppBar\"] > div:nth-child(1) > div:nth-child(3) > div:nth-child(1) > p:nth-child(1)"
         ),
         infoMessageConfig = InfoMessageConfig(
-            targetSelector = ".main-section-container > div[aria-label=\"ChatAppBar\"]:nth-child(1)"
+            targetSelector = ".main-section-container > div[aria-label=\"ChatAppBar\"]"
         ),
-        chatHeader = ".main-section-container > div[aria-label=\"ChatAppBar\"]:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(1) > p:nth-child(1)"
+        chatHeader = ".main-section-container > div[aria-label=\"ChatAppBar\"] > div:nth-child(1) > div:nth-child(3) > div:nth-child(1) > p:nth-child(1)"
     )
 
     override fun getProcessingConfig() = ProcessingConfig(
