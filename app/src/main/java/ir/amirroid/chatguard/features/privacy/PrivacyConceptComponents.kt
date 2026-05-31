@@ -1,6 +1,5 @@
 package ir.amirroid.chatguard.features.privacy
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,8 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,13 +27,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import ir.amirroid.chatguard.ui.components.document.DocumentClosingBanner
+import ir.amirroid.chatguard.ui.components.document.DocumentContentCard
+import ir.amirroid.chatguard.ui.components.document.DocumentHeroSection
+import ir.amirroid.chatguard.ui.components.document.DocumentIllustrationPlaceholder
+import ir.amirroid.chatguard.ui.components.document.DocumentInfoCallout
+import ir.amirroid.chatguard.ui.components.document.DocumentSectionCard
+import ir.amirroid.chatguard.ui.components.document.DocumentWarningCallout
 
 @Composable
 internal fun PrivacyHeroSection(
@@ -44,70 +44,15 @@ internal fun PrivacyHeroSection(
     body: String,
     illustrationIcon: ImageVector,
     modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        color = Color.Transparent,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(28.dp))
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f),
-                        ),
-                    ),
-                )
-                .padding(24.dp),
-        ) {
-            Column {
-                IllustrationPlaceholder(icon = illustrationIcon)
-                Spacer(Modifier.height(20.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = body,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f),
-                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
-                )
-            }
-        }
-    }
-}
+) = DocumentHeroSection(title, body, illustrationIcon, modifier)
 
 @Composable
 internal fun IllustrationPlaceholder(
     icon: ImageVector,
     modifier: Modifier = Modifier,
-    boxSize: Dp = 96.dp,
+    boxSize: androidx.compose.ui.unit.Dp = 96.dp,
     showCaption: Boolean = true,
-) {
-    Surface(
-        modifier = modifier.size(boxSize),
-        shape = RoundedCornerShape(if (boxSize >= 80.dp) 24.dp else 16.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
-        tonalElevation = 2.dp,
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(boxSize * 0.5f),
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
-    }
-}
+) = DocumentIllustrationPlaceholder(icon, modifier, boxSize)
 
 @Composable
 internal fun PrivacySectionCard(
@@ -116,52 +61,22 @@ internal fun PrivacySectionCard(
     modifier: Modifier = Modifier,
     leadingIcon: ImageVector? = null,
     content: @Composable (() -> Unit)? = null,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = .5.dp),
-    ) {
-        Column(Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                leadingIcon?.let { icon ->
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(40.dp),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(12.dp))
-                }
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-            if (body.isNotBlank()) {
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = body,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f),
-                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.15f,
-                )
-            }
-            content?.invoke()
-        }
-    }
-}
+) = DocumentSectionCard(title, body, modifier, leadingIcon, content)
+
+@Composable
+internal fun PrivacyCallout(
+    title: String,
+    body: String,
+    modifier: Modifier = Modifier,
+    icon: ImageVector = Icons.Rounded.Info,
+) = DocumentWarningCallout(title, body, modifier, icon)
+
+@Composable
+internal fun PrivacyClosingBanner(
+    title: String,
+    body: String,
+    modifier: Modifier = Modifier,
+) = DocumentClosingBanner(title, body, modifier)
 
 @Composable
 internal fun PrivacyTimeline(
@@ -255,10 +170,9 @@ internal fun PrivacyDualHighlightRow(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
-                    IllustrationPlaceholder(
+                    DocumentIllustrationPlaceholder(
                         icon = highlight.icon,
                         boxSize = 56.dp,
-                        showCaption = false,
                     )
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
@@ -345,51 +259,6 @@ internal fun PrivacyVisibilityTable(
 }
 
 @Composable
-internal fun PrivacyCallout(
-    title: String,
-    body: String,
-    modifier: Modifier = Modifier,
-    icon: ImageVector = Icons.Rounded.Info,
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.error.copy(alpha = 0.25f),
-        ),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(28.dp),
-            )
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = body,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f),
-                )
-            }
-        }
-    }
-}
-
-@Composable
 internal fun PrivacyBulletList(
     items: List<String>,
     modifier: Modifier = Modifier,
@@ -413,35 +282,6 @@ internal fun PrivacyBulletList(
                     modifier = Modifier.weight(1f),
                 )
             }
-        }
-    }
-}
-
-@Composable
-internal fun PrivacyClosingBanner(
-    title: String,
-    body: String,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
-    ) {
-        Column(Modifier.padding(20.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = body,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.92f),
-                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.2f,
-            )
         }
     }
 }

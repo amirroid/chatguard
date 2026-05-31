@@ -3,38 +3,51 @@ package ir.amirroid.chatguard.features.guide
 import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import ir.amirroid.chatguard.R
 import ir.amirroid.chatguard.core.floating_button.FloatingButtonController
 import ir.amirroid.chatguard.features.messages.ChatMessageItem
+import ir.amirroid.chatguard.ui.components.document.DocumentContentCard
+import ir.amirroid.chatguard.ui.components.document.DocumentInfoCallout
+import ir.amirroid.chatguard.ui.components.document.DocumentSectionCard
+import ir.amirroid.chatguard.ui.components.document.DocumentSectionHeading
 import ir.amirroid.chatguard.ui.theme.ChatGuardTheme
 import ir.amirroid.chatguard.ui_models.message.ChatMessageUiModel
 
@@ -44,231 +57,163 @@ private const val SAMPLE_MESSAGE = "این یک پیام تستی است!"
 @Composable
 fun GuideScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    Column {
-        TopAppBar(
-            title = {
-                Text(stringResource(R.string.guides))
-            }, navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = null
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            LargeTopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(R.string.guides),
+                        fontWeight = FontWeight.Bold,
                     )
-                }
-            }
-        )
-        Column(
-            Modifier
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-                .navigationBarsPadding()
-        ) {
-            Text(
-                buildAnnotatedString {
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("چت‌گارد ")
-                    pop()
-                    append("ابزاری برای ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("رمزنگاری و رمزگشایی پیام‌ها ")
-                    pop()
-                    append("در پیام‌رسان‌ها است که با هدف افزایش امنیت و حفظ حریم خصوصی کاربران طراحی شده است.\n\n")
-                    append("این برنامه امکان ارسال و دریافت پیام‌های رمزنگاری‌شده را بدون نیاز به تغییر پیام‌رسان اصلی فراهم می‌کند.")
-                    appendLine()
-                }
-            )
-            Text("برای استفاده از چت‌گارد، دو روش اصلی در اختیار شما قرار دارد:")
-            Text(
-                "روش اول: استفاده از نسخه وب در بستر اپلیکیشن",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 16.dp)
-            )
-            Text(
-                buildAnnotatedString {
-                    append("در این روش می‌توانید یکی از پیام‌رسان‌های پشتیبانی‌شده را انتخاب کرده و گفت‌وگو را آغاز کنید.\n\n")
-
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("رمزنگاری پیام‌ها\n")
-                    pop()
-                    append("برای ارسال پیام به‌صورت رمزنگاری‌شده، لازم است ابتدا ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("کلید رمزنگاری مخاطب ")
-                    pop()
-                    append("را در اختیار داشته باشید.\n\n")
-
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("دریافت کلید رمزنگاری مخاطب\n")
-                    pop()
-                    append("در صورتی که مخاطب کلید رمزنگاری خود را برای شما ارسال کرده باشد، در کنار پیام مربوطه دکمه‌ای با عنوان ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("«استفاده» ")
-                    pop()
-                    append("نمایش داده می‌شود که با انتخاب آن، کلید ذخیره خواهد شد.\n\n")
-
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("ارسال کلید رمزنگاری خود\n")
-                    pop()
-                    append("برای ارسال کلید رمزنگاری خود به شخص مقابل، می‌توانید از دکمه بالای صفحه با ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("آیکون کلید ")
-                    pop()
-                    append("استفاده کنید.\n\n")
-
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("ارسال پیام\n")
-                    pop()
-                    append("اگر کلید رمزنگاری موجود باشد، پیام به‌صورت خودکار به‌شکل رمزنگاری‌شده ارسال می‌شود.")
-                }
-            )
-            Text(
-                "روش دوم: استفاده از سرویس دسترسی و اپلیکیشن اصلی",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 16.dp)
-            )
-            Text(
-                buildAnnotatedString {
-                    append("این روش به شما امکان می‌دهد بدون ورود مجدد به نسخه وب و با استفاده از اپلیکیشن اصلی پیام‌رسان فعالیت کنید.\n\n")
-
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("فعال‌سازی دسترسی‌ها\n")
-                    pop()
-                    append("پس از اعطای مجوزهای موردنیاز، یک ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("دکمه دایره‌ای شناور ")
-                    pop()
-                    append("بر روی صفحه نمایش داده می‌شود.")
-                    appendLine()
-                }
-            )
-            Box(
-                Modifier.fillMaxWidth(), contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    Modifier
-                        .size(36.dp)
-                        .border(
-                            4.dp,
-                            Color(FloatingButtonController.GREEN_SUCCESS_COLOR),
-                            CircleShape
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = null,
                         )
+                    }
+                },
+                scrollBehavior = scrollBehavior,
+            )
+        },
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(
+                top = 12.dp,
+                bottom = 24.dp,
+            ) + innerPadding,
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            item(key = "accessibility_note") {
+                DocumentInfoCallout(
+                    title = stringResource(R.string.guide_accessibility_note_title),
+                    body = stringResource(R.string.guide_accessibility_note_body),
                 )
             }
-            Text(
-                buildAnnotatedString {
-                    appendLine()
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("مشاهده و رمزگشایی پیام‌ها\n")
-                    pop()
-                    append("با انتخاب این دکمه، پیام‌های موجود روی صفحه نمایش داده می‌شوند. در صورتی که کلید رمزنگاری قبلاً ثبت شده باشد، پیام‌ها به‌صورت ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("رمزگشایی‌شده ")
-                    pop()
-                    append("نمایش داده خواهند شد.")
-                    appendLine()
-                }
-            )
-            ChatMessageItem(
-                message = ChatMessageUiModel(
-                    0,
-                    SAMPLE_MESSAGE,
-                    false,
-                    "03:30",
-                    isDecryptedMessage = true
-                ),
-                onCopyMessage = {},
-                onSavePublicKey = {}
-            )
-            Text(
-                buildAnnotatedString {
-                    appendLine()
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("استفاده از کلید رمزنگاری\n")
-                    pop()
-                    append("برای ارسال پیام یا رمزگشایی پیام‌های حاوی کلید، لازم است کلید رمزنگاری مخاطب در اختیار شما باشد. در لیست پیام‌ها، دکمه ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("«استفاده» ")
-                    pop()
-                    append("برای ذخیره کلید نمایش داده می‌شود.")
-                    appendLine()
-                }
-            )
-            ChatMessageItem(
-                message = ChatMessageUiModel(0, SAMPLE_MESSAGE, false, "00:00", isPublicKey = true),
-                onCopyMessage = {},
-                onSavePublicKey = {
-                    Toast.makeText(context, R.string.usage, Toast.LENGTH_SHORT).show()
-                }
-            )
-            Text(
-                buildAnnotatedString {
-                    appendLine()
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("ارسال پیام\n")
-                    pop()
-                    append("برای ارسال پیام، پس از باز شدن پنجره شناور، گزینه ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("ارسال پیام ")
-                    pop()
-                    append("را انتخاب کرده، متن موردنظر را وارد نموده و دکمه ارسال را فشار دهید.")
-                }
-            )
 
-            Text(
-                "نحوه فعال‌سازی سرویس Accessibility",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 16.dp)
-            )
-            Text(
-                buildAnnotatedString {
-                    append("برای فعال‌سازی کامل قابلیت‌های چت‌گارد، لازم است سرویس دسترسی (Accessibility Service) را فعال کنید.\n\n")
-                    append("ابتدا بر روی گزینه ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("اعطای مجوز ")
-                    pop()
-                    append("کلیک کنید. در صفحه تنظیمات بازشده، وارد بخش ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("Downloaded apps ")
-                    pop()
-                    append("(یا «برنامه‌های دانلودشده») شوید.\n\n")
-                    append("در لیست برنامه‌ها، گزینه ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("ChatGuard ")
-                    pop()
-                    append("را پیدا کرده و انتخاب کنید. سپس گزینه ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("Use service ")
-                    pop()
-                    append("یا ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("Enable ")
-                    pop()
-                    append("را فعال کنید.\n\n")
-                    append("در مرحله بعد، پیام هشدار سیستم را مطالعه کرده و برای نهایی شدن، گزینه ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("Allow ")
-                    pop()
-                    append("یا ")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("OK ")
-                    pop()
-                    append("را انتخاب نمایید.\n\n")
-                    append("پس از فعال‌سازی موفق، می‌توانید به برنامه بازگشته و از تمامی قابلیت‌های چت‌گارد بدون محدودیت استفاده کنید.")
+            item(key = "intro") {
+                DocumentContentCard {
+                    GuideIntroText()
                 }
-            )
+            }
+
+            item(key = "methods_overview") {
+                DocumentContentCard {
+                    GuideMethodsOverviewText()
+                }
+            }
+
+            item(key = "method_web") {
+                DocumentSectionCard(
+                    title = "روش اول: استفاده از نسخه وب در بستر اپلیکیشن",
+                    leadingIcon = Icons.Rounded.Language,
+                    content = {
+                        Spacer(Modifier.height(12.dp))
+                        GuideWebMethodBodyText()
+                    },
+                )
+            }
+
+            item(key = "method_accessibility") {
+                DocumentSectionCard(
+                    title = "روش دوم: استفاده از سرویس دسترسی و اپلیکیشن اصلی",
+                    leadingIcon = Icons.Rounded.PhoneAndroid,
+                    content = {
+                        Spacer(Modifier.height(12.dp))
+                        GuideAccessibilityMethodIntroText()
+                        Spacer(Modifier.height(8.dp))
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .border(
+                                        width = 4.dp,
+                                        color = Color(FloatingButtonController.GREEN_SUCCESS_COLOR),
+                                        shape = CircleShape,
+                                    ),
+                            )
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        GuideSendEncryptionKeyBottomSheetText()
+                        GuideBottomSheetHeaderPreview()
+                        Spacer(Modifier.height(16.dp))
+                        GuideDecryptMessagesText()
+                        Spacer(Modifier.height(8.dp))
+                        ChatMessageItem(
+                            message = ChatMessageUiModel(
+                                index = 0,
+                                message = SAMPLE_MESSAGE,
+                                isMessageFromMe = false,
+                                date = "03:30",
+                                isDecryptedMessage = true,
+                            ),
+                            onCopyMessage = {
+                                Toast.makeText(context, R.string.copy, Toast.LENGTH_SHORT).show()
+                            },
+                            onSavePublicKey = {},
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        GuideUseEncryptionKeyText()
+                        Spacer(Modifier.height(8.dp))
+                        ChatMessageItem(
+                            message = ChatMessageUiModel(
+                                index = 0,
+                                message = SAMPLE_MESSAGE,
+                                isMessageFromMe = false,
+                                date = "00:00",
+                                isPublicKey = true,
+                            ),
+                            onCopyMessage = {},
+                            onSavePublicKey = {
+                                Toast.makeText(context, R.string.usage, Toast.LENGTH_SHORT).show()
+                            },
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        GuideSendMessageAccessibilityText()
+                    },
+                )
+            }
+
+            item(key = "accessibility_setup_heading") {
+                DocumentSectionHeading(
+                    text = "نحوه فعال‌سازی سرویس Accessibility",
+                )
+            }
+
+            item(key = "accessibility_setup") {
+                DocumentSectionCard(
+                    title = "",
+                    leadingIcon = Icons.Rounded.TouchApp,
+                    content = {
+                        GuideAccessibilitySetupText()
+                    },
+                )
+            }
+
+            item(key = "bottom_spacer") {
+                Spacer(Modifier.height(8.dp))
+            }
         }
     }
 }
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
-@Preview
+@Preview(showBackground = true)
 @Composable
 private fun GuideScreenPreview() {
     ChatGuardTheme {
         Scaffold {
-            GuideScreen({})
+            GuideScreen(onBack = {})
         }
     }
 }

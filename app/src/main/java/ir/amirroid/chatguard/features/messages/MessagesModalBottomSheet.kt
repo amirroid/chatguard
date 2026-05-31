@@ -21,14 +21,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.LockOpen
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -66,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import ir.amirroid.chatguard.R
 import ir.amirroid.chatguard.ui.components.ExpandIconButton
 import ir.amirroid.chatguard.ui.components.TransparentListItem
+import ir.amirroid.chatguard.ui.components.messages.EncryptionKeyMenuButton
 import ir.amirroid.chatguard.ui.theme.ChatGuardTheme
 import ir.amirroid.chatguard.ui_models.message.ChatMessageUiModel
 import ir.amirroid.chatguard.utils.Constants
@@ -261,8 +259,9 @@ private fun MessagesHeader(
     hasPublicKey: Boolean,
     sheetState: SheetState,
     onStartComposing: () -> Unit,
-    onSendPublicKey: () -> Unit
+    onSendPublicKey: () -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -277,9 +276,13 @@ private fun MessagesHeader(
             Text(stringResource(R.string.send_message))
         }
 
-        MenuOption(
-            sheetState = sheetState,
-            onSendEncryptionKey = onSendPublicKey
+        EncryptionKeyMenuButton(
+            onSendEncryptionKey = {
+                scope.launch {
+                    onSendPublicKey()
+                    sheetState.hide()
+                }
+            },
         )
     }
 }
@@ -400,44 +403,6 @@ private fun MissingPublicKeyWarning(
         )
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MenuOption(
-    sheetState: SheetState,
-    onSendEncryptionKey: suspend () -> Unit
-) {
-    var isMenuOpened by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
-    Box {
-        IconButton(onClick = { isMenuOpened = true }) {
-            Icon(
-                imageVector = Icons.Rounded.MoreVert,
-                contentDescription = null
-            )
-        }
-
-        DropdownMenu(
-            expanded = isMenuOpened,
-            onDismissRequest = { isMenuOpened = false }
-        ) {
-            DropdownMenuItem(
-                text = {
-                    Text(stringResource(R.string.send_encryption_key))
-                },
-                onClick = {
-                    scope.launch {
-                        onSendEncryptionKey()
-                        sheetState.hide()
-                        isMenuOpened = false
-                    }
-                }
-            )
-        }
-    }
-}
-
 
 @Composable
 @Preview

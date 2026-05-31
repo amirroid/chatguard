@@ -315,16 +315,33 @@ private fun SettingsCard(
             Column {
                 TransparentListItem(
                     headlineContent = {
-                        Text(stringResource(R.string.export_keys))
+                        Text(stringResource(R.string.guides))
                     },
-                    modifier = Modifier.clickable(onClick = onExportKeys)
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .padding(end = 16.dp)
+                                .size(16.dp)
+                        )
+                    },
+                    modifier = Modifier.clickable(onClick = onGoToGuides)
                 )
-
                 TransparentListItem(
                     headlineContent = {
-                        Text(stringResource(R.string.exit_current_keys))
+                        Text(stringResource(R.string.privacy_concept))
                     },
-                    modifier = Modifier.clickable(onClick = onExitKeys)
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .padding(end = 16.dp)
+                                .size(16.dp)
+                        )
+                    },
+                    modifier = Modifier.clickable(onClick = onGoToPrivacyConcept)
                 )
 
                 TransparentListItem(
@@ -344,33 +361,16 @@ private fun SettingsCard(
                 )
                 TransparentListItem(
                     headlineContent = {
-                        Text(stringResource(R.string.privacy_concept))
+                        Text(stringResource(R.string.export_keys))
                     },
-                    trailingContent = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .padding(end = 16.dp)
-                                .size(16.dp)
-                        )
-                    },
-                    modifier = Modifier.clickable(onClick = onGoToPrivacyConcept)
+                    modifier = Modifier.clickable(onClick = onExportKeys)
                 )
+
                 TransparentListItem(
                     headlineContent = {
-                        Text(stringResource(R.string.guides))
+                        Text(stringResource(R.string.exit_current_keys))
                     },
-                    trailingContent = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .padding(end = 16.dp)
-                                .size(16.dp)
-                        )
-                    },
-                    modifier = Modifier.clickable(onClick = onGoToGuides)
+                    modifier = Modifier.clickable(onClick = onExitKeys)
                 )
             }
         }
