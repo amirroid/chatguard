@@ -1,6 +1,6 @@
 # چت‌گارد
 
-> رمزنگاری سرتاسری ساده برای ایتا، بله، سروش، تلگرام و سایر پیام‌رسان‌های مشابه
+> رمزنگاری سرتاسری ساده برای ایتا، بله، سروش
 
 [دریافت آخرین نسخه](https://github.com/amirroid/chatguard/releases){ .md-button .md-button--primary }
 [مخزن گیت‌هاب](https://github.com/amirroid/chatguard){ .md-button }

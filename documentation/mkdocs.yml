@@ -26,6 +26,7 @@ extra_css:
   - stylesheets/extra.css
 
 plugins:
+  - search
   - i18n:
       docs_structure: folder
       languages:
@@ -33,6 +34,10 @@ plugins:
           default: true
           name: English
           build: true
+
+          site_name: ChatGuard
+          site_description: Secure messaging without servers
+
           nav:
             - Home: index.md
             - How To Use: how-to-use.md
@@ -41,6 +46,10 @@ plugins:
         - locale: fa
           name: فارسی
           build: true
+
+          site_name: چت‌گارد
+          site_description: پیام‌رسانی امن بدون نیاز به سرور
+
           nav:
             - خانه: index.md
             - راهنمای استفاده: how-to-use.md

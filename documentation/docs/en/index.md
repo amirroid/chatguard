@@ -1,6 +1,6 @@
 # ChatGuard
 
-> Simple end-to-end encryption for Eitaa, Bale, Soroush, Telegram, and similar messaging platforms.
+> Simple end-to-end encryption for Eitaa, Bale, Soroush.
 
 [Download Latest Release](https://github.com/amirroid/chatguard/releases){ .md-button .md-button--primary }
 [GitHub Repository](https://github.com/amirroid/chatguard){ .md-button }
