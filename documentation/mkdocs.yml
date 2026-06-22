@@ -26,7 +26,6 @@ extra_css:
   - stylesheets/extra.css
 
 plugins:
-  - search
   - i18n:
       docs_structure: folder
       languages:
@@ -34,12 +33,15 @@ plugins:
           default: true
           name: English
           build: true
+          nav:
+            - Home: index.md
+            - How To Use: how-to-use.md
+            - How It Works: how-it-works.md
 
         - locale: fa
           name: فارسی
           build: true
-
-nav:
-  - Home: index.md
-  - How To Use: how-to-use.md
-  - How It Works: how-it-works.md
+          nav:
+            - خانه: index.md
+            - راهنمای استفاده: how-to-use.md
+            - نحوه عملکرد: how-it-works.md

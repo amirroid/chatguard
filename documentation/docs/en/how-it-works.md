@@ -1,11 +1,3 @@
-# ChatGuard: Simple End-to-End Encryption
-
-## Overview
-
-ChatGuard is a privacy bridge: it encrypts messages on your device and disguises them as poetic Persian text so you can send them through existing apps (Eitaa, Bale, Soroush, Telegram, and similar). Keys stay on your phone. There are no ChatGuard servers or accounts.
-
-The design favors **small messages** and **simple code** over Signal-level features such as perfect forward secrecy or double ratchets.
-
 ## How It Works
 
 ### Key exchange (once per contact)
