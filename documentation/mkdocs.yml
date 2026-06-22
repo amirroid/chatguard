@@ -1,0 +1,45 @@
+site_name: ChatGuard
+site_description: Secure messaging without servers
+
+repo_url: https://github.com/amirroid/chatguard
+repo_name: amirroid/chatguard
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+
+theme:
+  name: material
+
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: folder
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+
+        - locale: fa
+          name: فارسی
+          build: true
+
+nav:
+  - Home: index.md
+  - How To Use: how-to-use.md
+  - How It Works: how-it-works.md
