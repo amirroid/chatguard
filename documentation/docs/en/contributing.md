@@ -14,8 +14,6 @@ Thank you for your interest in contributing to ChatGuard! This guide will help y
 
 ## Help Publish on Google Play
 
-### English
-
 ChatGuard is currently distributed only through GitHub Releases. Publishing it on **Google Play** is an important next step because:
 
 * It improves **Android security and trust validation** for the app.
