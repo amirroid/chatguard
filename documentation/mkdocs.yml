@@ -7,26 +7,54 @@ repo_name: amirroid/chatguard
 markdown_extensions:
   - attr_list
   - md_in_html
+  - tables
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
 
 theme:
   name: material
 
+  icon:
+    logo: material/shield-lock
+
   palette:
-    - scheme: default
+    # Light mode (system preference)
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: light blue
       toggle:
         icon: material/weather-night
         name: Dark mode
 
-    - scheme: slate
+    # Dark mode (system preference)
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: light blue
       toggle:
         icon: material/weather-sunny
         name: Light mode
+
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+    - search.highlight
 
 extra_css:
   - stylesheets/extra.css
 
 plugins:
   - search
+
   - i18n:
       docs_structure: folder
       languages:
@@ -42,6 +70,7 @@ plugins:
             - Home: index.md
             - How To Use: how-to-use.md
             - How It Works: how-it-works.md
+            - Contributing: contributing.md
 
         - locale: fa
           name: فارسی
@@ -54,3 +83,4 @@ plugins:
             - خانه: index.md
             - راهنمای استفاده: how-to-use.md
             - نحوه عملکرد: how-it-works.md
+            - مشارکت در پروژه: contributing.md

@@ -5,13 +5,76 @@ body {
 }
 
 .md-typeset h1 {
-    margin-bottom: .2rem;
+    margin-bottom: .4rem;
+}
+
+.md-typeset h2 {
+    margin-top: 1.8rem;
+    padding-bottom: .3rem;
+    border-bottom: 1px solid var(--md-typeset-table-color);
+}
+
+.md-typeset h3 {
+    margin-top: 1.4rem;
 }
 
 .md-typeset blockquote {
-    border-left: 3px solid var(--md-primary-fg-color);
+    border-left: 4px solid var(--md-primary-fg-color);
+    background-color: var(--md-code-bg-color);
+    padding: .8rem 1rem;
+    border-radius: 4px;
 }
 
 .md-typeset .md-button {
     border-radius: 10px;
+    font-weight: 600;
+    padding: .6rem 1.4rem;
+    transition: background-color .25s, box-shadow .25s;
+}
+
+.md-typeset .md-button:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+
+.md-typeset .md-button--primary {
+    background-color: var(--md-primary-fg-color);
+    color: var(--md-primary-bg-color);
+}
+
+.md-typeset .md-button--primary:hover {
+    background-color: var(--md-primary-fg-color--dark);
+}
+
+.md-typeset table {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.md-typeset table th {
+    background-color: var(--md-primary-fg-color);
+    color: var(--md-primary-bg-color);
+    font-weight: 700;
+}
+
+.md-typeset table td,
+.md-typeset table th {
+    padding: .6rem .8rem;
+}
+
+.md-typeset hr {
+    border-top: 1px solid var(--md-typeset-table-color);
+    margin: 2rem 0;
+}
+
+.md-typeset .admonition,
+.md-typeset details {
+    border-radius: 8px;
+}
+
+.md-header {
+    background-color: var(--md-primary-fg-color);
+}
+
+.md-footer {
+    background-color: var(--md-default-fg-color--lightest);
 }
